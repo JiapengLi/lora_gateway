@@ -64,6 +64,9 @@ obj/parson.o: src/parson.c inc/parson.h
 ifeq ($(CFG_BAND),eu868)
 global_conf.json: cfg/global_conf.eu868.json
 	cp $< $@
+else ifeq ($(CFG_BAND),cn780)
+global_conf.json: cfg/global_conf.cn780.json
+	cp $< $@
 else ifeq ($(CFG_BAND),us915)
 global_conf.json: cfg/global_conf.us915.json
 	cp $< $@

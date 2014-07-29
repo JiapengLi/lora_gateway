@@ -66,6 +66,11 @@ Maintainer: Sylvain Miermont
 		#define LGW_RF_TX_LOWFREQ	{ 400000000, 400000000}
 		#define LGW_RF_TX_UPFREQ	{ 510000000, 510000000}
 	#endif
+#elif (CFG_BAND_780 == 1)
+	#define LGW_RF_RX_LOWFREQ	{ 779000000, 779000000}
+	#define LGW_RF_RX_UPFREQ	{ 787000000, 787000000}
+	#define LGW_RF_TX_LOWFREQ	{ 779000000, 779000000}
+	#define LGW_RF_TX_UPFREQ	{ 787000000, 787000000}
 #elif (CFG_BAND_868 == 1)
 	#define LGW_RF_RX_LOWFREQ	{ 863000000, 863000000}
 	#define LGW_RF_RX_UPFREQ	{ 870000000, 870000000}
@@ -136,7 +141,7 @@ Maintainer: Sylvain Miermont
 #if (CFG_BRD_NANO868 == 1)
 	#define LGW_RF_TX_ENABLE	{ true, true}	/* both radio A and B are usable in TX */
 	#define LGW_RF_CLKOUT		{ true, true}	/* both radios have clkout enabled */
-#elif ((CFG_BRD_1301REF868 == 1) || (CFG_BRD_1301REF433 == 1) || (CFG_BRD_KERLINK868 == 1))
+#elif ((CFG_BRD_1301REF868 == 1) || (CFG_BRD_1301REF780 == 1) || (CFG_BRD_1301REF433 == 1) || (CFG_BRD_KERLINK868 == 1))
 	#define LGW_RF_TX_ENABLE	{ true,false}	/* radio B TX output is disconnected */
 	#define LGW_RF_CLKOUT		{false, true}	/* radio A clkout disabled for spur optimization */
 /* === ADD CUSTOMIZATION FOR YOUR OWN BOARD HERE ===
