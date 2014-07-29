@@ -45,7 +45,10 @@ Maintainer: Sylvain Miermont
 /* -------------------------------------------------------------------------- */
 /* --- PRIVATE CONSTANTS ---------------------------------------------------- */
 
-#define		RF_CHAIN				0	/* we'll use radio A only */
+#define		RF_CHAIN				1	/* we'll use radio A only */
+
+#define 	RF_CHAIN0				0
+#define 	RF_CHAIN1				1
 
 const uint32_t lowfreq[LGW_RF_CHAIN_NB] = LGW_RF_TX_LOWFREQ;
 const uint32_t upfreq[LGW_RF_CHAIN_NB] = LGW_RF_TX_UPFREQ;
@@ -251,7 +254,9 @@ int main(int argc, char **argv)
 	sigaction(SIGTERM, &sigact, NULL);
 	
 	/* starting the concentrator */
-	lgw_rxrf_setconf(RF_CHAIN, rfconf);
+	lgw_rxrf_setconf(RF_CHAIN0, rfconf);
+	lgw_rxrf_setconf(RF_CHAIN1, rfconf);
+
 	i = lgw_start();
 	if (i == LGW_HAL_SUCCESS) {
 		MSG("INFO: concentrator started, packet can be sent\n");
@@ -303,6 +308,16 @@ int main(int argc, char **argv)
 		
 		/* send packet */
 		printf("Sending packet number %u ...", cycle_count);
+		txpkt.rf_chain = RF_CHAIN0;
+		txpkt.freq_hz = f_target;
+		i = lgw_send(txpkt); /* non-blocking scheduling of TX packet */
+		if (i != LGW_HAL_SUCCESS) {
+			printf("ERROR\n");
+			return EXIT_FAILURE;
+		}
+
+		txpkt.rf_chain = RF_CHAIN1;
+		txpkt.freq_hz = f_target-200000;
 		i = lgw_send(txpkt); /* non-blocking scheduling of TX packet */
 		if (i != LGW_HAL_SUCCESS) {
 			printf("ERROR\n");

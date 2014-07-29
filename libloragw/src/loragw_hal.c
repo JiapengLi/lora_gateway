@@ -115,6 +115,8 @@ F_register(24bit) = F_rf (Hz) / F_step(Hz)
 	#define		RSSI_BOARD_OFFSET		167
 #elif (CFG_BRD_1301REF433 == 1)
 	#define		RSSI_BOARD_OFFSET		176
+#elif (CFG_BRD_1301REF433_V2 == 1)
+	#define		RSSI_BOARD_OFFSET		176
 /* === ADD CUSTOMIZATION FOR YOUR OWN BOARD HERE ===
 #elif (CFG_BRD_MYBOARD == 1)
 */
@@ -209,7 +211,7 @@ typedef struct {
 		{	3,	3,	12,	26},\
 		{	3,	3,	14,	27},\
 	}; /* calibrated */
-#elif (CFG_BRD_1301REF433 == 1)
+#elif ((CFG_BRD_1301REF433 == 1) || (CFG_BRD_1301REF433_V2 == 1))
 	#define	CUSTOM_TX_POW_TABLE		1
 	// WARNING: TABLE NO CALIBRATED, COPIED FOR 868
 	const tx_pow_t tx_pow_table[TX_POW_LUT_SIZE] = {\
@@ -321,6 +323,8 @@ typedef struct {
 	#define		CFG_BRD_STR		"ref_1301_868"
 #elif (CFG_BRD_1301REF433 == 1)
 	#define		CFG_BRD_STR		"ref_1301_433"
+#elif (CFG_BRD_1301REF433_V2 == 1)
+	#define		CFG_BRD_STR		"ref_1301_433_v2"
 #elif (CFG_BRD_KERLINK868 == 1)
 	#define		CFG_BRD_STR		"kerlink_868"
 /* === ADD CUSTOMIZATION FOR YOUR OWN BOARD HERE ===
@@ -954,9 +958,12 @@ int lgw_start(void) {
 	cal_cmd |= 0x20; /* Bit 5: 0: SX1257, 1: SX1255 */
 	#endif
 	
-	#if ((CFG_BRD_1301REF868 == 1) || (CFG_BRD_1301REF433 == 1) || (CFG_BRD_KERLINK868 == 1))
+	#if ((CFG_BRD_1301REF868 == 1) || (CFG_BRD_1301REF433 == 1) ||  (CFG_BRD_KERLINK868 == 1))
 	cal_cmd |= 0x00; /* Bit 6-7: Board type 0: ref, 1: FPGA, 3: board X */
 	cal_time = 2300; /* measured between 2.1 and 2.2 sec, because 1 TX only */
+	#elif (CFG_BRD_1301REF433_V2 == 1) 
+	cal_cmd |= 0x00; /* Bit 6-7: Board type 0: ref, 1: FPGA, 3: board X */
+	cal_time = 5200; /* measured between 2.1 and 2.2 sec, because 1 TX only */
 	#elif (CFG_BRD_NANO868 == 1)
 	cal_cmd |= 0x40; /* Bit 6-7: Board type 0: ref, 1: FPGA, 3: board X */
 	cal_time = 5200; /* measured between 5.0 and 5.1 sec */
@@ -992,10 +999,10 @@ int lgw_start(void) {
 		bit 6: radio B TX imbalance correction successful
 	*/
 	if ((cal_status & 0x81) != 0x81) {
-		DEBUG_PRINTF("ERROR: CALIBRATION FAILURE (STATUS = %u)\n", cal_status);
+		DEBUG_PRINTF("ERROR: CALIBRATION FAILURE (STATUS = %02x)\n", cal_status);
 		return LGW_HAL_ERROR;
 	} else {
-		DEBUG_PRINTF("Note: calibration finished (status = %u)\n", cal_status);
+		DEBUG_PRINTF("Note: calibration finished (status = %02x)\n", cal_status);
 	}
 	if (rf_enable[0] && ((cal_status & 0x02) == 0)) {
 		DEBUG_MSG("WARNING: calibration could not access radio A\n");

@@ -92,6 +92,9 @@ else ifeq ($(CFG_BRD),ref_1301_433)
 else ifeq ($(CFG_BRD),kerlink_868)
   CFG_BRD_MSG := Kerlink LoRa 868MHz gateway
   CFG_BRD_OPT := CFG_BRD_KERLINK868
+else ifeq ($(CFG_BRD),ref_1301_433_v2)
+  CFG_BRD_MSG := China LoRa 433MHz gateway for RPi
+  CFG_BRD_OPT := CFG_BRD_1301REF433_V2
 else
   $(info [Info] No specific board selected.)
   CFG_BRD_MSG := None
