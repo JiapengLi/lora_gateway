@@ -111,6 +111,8 @@ F_register(24bit) = F_rf (Hz) / F_step(Hz)
 	#define		RSSI_BOARD_OFFSET		176
 #elif (CFG_BRD_1301REF868 == 1)
 	#define		RSSI_BOARD_OFFSET		169.5
+#elif (CFG_BRD_1301REF780 == 1)
+	#define		RSSI_BOARD_OFFSET		169.5
 #elif (CFG_BRD_KERLINK868 == 1)
 	#define		RSSI_BOARD_OFFSET		167
 #elif (CFG_BRD_1301REF433 == 1)
@@ -192,6 +194,26 @@ typedef struct {
 		{	2,	3,	13,	27},\
 	}; /* calibrated */
 #elif (CFG_BRD_1301REF868 == 1)
+	#define	CUSTOM_TX_POW_TABLE		1
+	const tx_pow_t tx_pow_table[TX_POW_LUT_SIZE] = {\
+		{	0,	3,	 8,	-6},\
+		{	0,	3,	10,	-3},\
+		{	0,	3,	12,	 0},\
+		{	1,	3,	 8,	 3},\
+		{	1,	3,	10,	 6},\
+		{	1,	3,	12,	10},\
+		{	1,	3,	13,	11},\
+		{	2,	3,	 9,	12},\
+		{	1,	3,	15,	13},\
+		{	2,	3,	10,	14},\
+		{	2,	3,	11,	16},\
+		{	3,	3,	 9,	20},\
+		{	3,	3,	10,	23},\
+		{	3,	3,	11,	25},\
+		{	3,	3,	12,	26},\
+		{	3,	3,	14,	27},\
+	}; /* calibrated */
+#elif (CFG_BRD_1301REF780 == 1)
 	#define	CUSTOM_TX_POW_TABLE		1
 	const tx_pow_t tx_pow_table[TX_POW_LUT_SIZE] = {\
 		{	0,	3,	 8,	-6},\
@@ -307,6 +329,8 @@ typedef struct {
 	#define		CFG_BAND_STR	"full"
 #elif (CFG_BAND_868 == 1)
 	#define		CFG_BAND_STR	"eu868"
+#elif (CFG_BAND_780 == 1)
+	#define		CFG_BAND_STR	"cn780"
 #elif (CFG_BAND_915 == 1)
 	#define		CFG_BAND_STR	"us915"
 #elif (CFG_BAND_470 == 1)
@@ -321,6 +345,8 @@ typedef struct {
 	#define		CFG_BRD_STR		"dev_nano_868"
 #elif (CFG_BRD_1301REF868 == 1)
 	#define		CFG_BRD_STR		"ref_1301_868"
+#elif (CFG_BRD_1301REF780 == 1)
+	#define		CFG_BRD_STR		"ref_1301_780"
 #elif (CFG_BRD_1301REF433 == 1)
 	#define		CFG_BRD_STR		"ref_1301_433"
 #elif (CFG_BRD_1301REF433_V2 == 1)
@@ -958,7 +984,7 @@ int lgw_start(void) {
 	cal_cmd |= 0x20; /* Bit 5: 0: SX1257, 1: SX1255 */
 	#endif
 	
-	#if ((CFG_BRD_1301REF868 == 1) || (CFG_BRD_1301REF433 == 1) ||  (CFG_BRD_KERLINK868 == 1))
+	#if ((CFG_BRD_1301REF868 == 1) || (CFG_BRD_1301REF780 == 1) || (CFG_BRD_1301REF433 == 1) || (CFG_BRD_KERLINK868 == 1))
 	cal_cmd |= 0x00; /* Bit 6-7: Board type 0: ref, 1: FPGA, 3: board X */
 	cal_time = 2300; /* measured between 2.1 and 2.2 sec, because 1 TX only */
 	#elif (CFG_BRD_1301REF433_V2 == 1) 

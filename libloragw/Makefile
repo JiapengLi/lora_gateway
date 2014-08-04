@@ -53,6 +53,13 @@ else ifeq ($(CFG_BAND),eu868)
   else
     $(error The selected radio(s) cannot work in the selected band.)
   endif
+else ifeq ($(CFG_BAND),cn780)
+  ifeq ($(CFG_RADIO),sx1257)
+    CFG_BAND_MSG := China 780 MHz band, special for China IoT application
+    CFG_BAND_OPT := CFG_BAND_780
+  else
+    $(error The selected radio(s) cannot work in the selected band.)
+  endif
 else ifeq ($(CFG_BAND),us915)
   ifeq ($(CFG_RADIO),sx1257)
     CFG_BAND_MSG := FCC 915 MHz band
@@ -86,6 +93,9 @@ ifeq ($(CFG_BRD),dev_nano_868)
 else ifeq ($(CFG_BRD),ref_1301_868)
   CFG_BRD_MSG := SX1301 reference board with SX1257 radios, 868 MHz filters
   CFG_BRD_OPT := CFG_BRD_1301REF868
+else ifeq ($(CFG_BRD),ref_1301_780)
+  CFG_BRD_MSG := SX1301 reference board with SX1257 radios, 780 MHz filters
+  CFG_BRD_OPT := CFG_BRD_1301REF780
 else ifeq ($(CFG_BRD),ref_1301_433)
   CFG_BRD_MSG := SX1301 reference board with SX1255 radios, 433 MHz filters
   CFG_BRD_OPT := CFG_BRD_1301REF433
@@ -123,7 +133,7 @@ endif
 
 ### general build targets
 
-all: libloragw.a test_loragw_spi test_loragw_reg test_loragw_hal test_loragw_gps
+all: libloragw.a test_loragw_spi test_loragw_reg test_loragw_hal test_loragw_rx test_loragw_gps
 
 clean:
 	rm -f libloragw.a
@@ -206,6 +216,9 @@ test_loragw_reg: tst/test_loragw_reg.c libloragw.a
 	$(CC) $(CFLAGS) -L. $< -o $@ $(LIBS)
 
 test_loragw_hal: tst/test_loragw_hal.c libloragw.a
+	$(CC) $(CFLAGS) -L. $< -o $@ $(LIBS)
+
+test_loragw_rx: tst/test_loragw_rx.c libloragw.a
 	$(CC) $(CFLAGS) -L. $< -o $@ $(LIBS)
 
 test_loragw_gps: tst/test_loragw_gps.c libloragw.a

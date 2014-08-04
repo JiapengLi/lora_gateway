@@ -10,7 +10,7 @@ Description:
 	Minimum test program for the loragw_hal 'library'
 
 License: Revised BSD License, see LICENSE.TXT file include in the project
-Maintainer: Sylvain Miermont
+Maintainer: Sylvain Miermont and Jiapeng Li
 */
 
 
@@ -29,6 +29,7 @@ Maintainer: Sylvain Miermont
 #include <stdio.h>		/* printf */
 #include <string.h>		/* memset */
 #include <signal.h>		/* sigaction */
+#include <stdlib.h>
 
 #include "loragw_hal.h"
 #include "loragw_reg.h"
@@ -86,10 +87,23 @@ static void sig_handler(int sigio) {
 	}
 }
 
+#define CHANNEL_NUM		8
+
+int offset_tab[CHANNEL_NUM][3] = {
+	{ 200000, 0, F_RX_0,},
+	{      0, 0, F_RX_0,},
+	{-200000, 0, F_RX_0,},
+	{-400000, 0, F_RX_0,},
+	{ 200000, 1, F_RX_1,},
+	{      0, 1, F_RX_1,},
+	{-200000, 1, F_RX_1,},
+	{-400000, 1, F_RX_1,},
+};
+
 /* -------------------------------------------------------------------------- */
 /* --- MAIN FUNCTION -------------------------------------------------------- */
 
-int main()
+int main(int argc, char ** argv)
 {
 	struct sigaction sigact; /* SIGQUIT&SIGINT&SIGTERM signal handling */
 	
@@ -97,16 +111,32 @@ int main()
 	struct lgw_conf_rxif_s ifconf;
 	
 	struct lgw_pkt_rx_s rxpkt[4]; /* array containing up to 4 inbound packets metadata */
-	struct lgw_pkt_tx_s txpkt; /* configuration and metadata for an outbound packet */
 	struct lgw_pkt_rx_s *p; /* pointer on a RX packet */
 	
 	int i, j;
 	int nb_pkt;
 	
-	uint32_t tx_cnt = 0;
-	unsigned long loop_cnt = 0;
-	uint8_t status_var = 0;
-	
+	int channel_num = CHANNEL_NUM;
+
+	switch(argc){
+		case 1:
+			channel_num = CHANNEL_NUM;
+			break;
+		case 2:
+			channel_num = atoi(argv[1]);
+			if(channel_num > 0 && channel_num < 9){
+
+			}else{
+				printf("\nUsage: test_loragw_rx ChannelNumber(uint)\n8 channels maximum, without parameter to select 8 channels\n\n");
+				exit(-1);
+			}
+			break;
+		default:
+			printf("\nUsage: test_loragw_rx ChannelNumber(uint)\n8 channels maximum, without parameter to select 8 channels\n\n");
+			exit(-1);
+			break;
+	}
+
 	/* configure signal handling */
 	sigemptyset(&sigact.sa_mask);
 	sigact.sa_flags = 0;
@@ -120,69 +150,33 @@ int main()
 	
 	printf("*** Library version information ***\n%s\n\n", lgw_version_info());
 	
+	printf("F_RX0 = %d, F_RX1 = %d\n", F_RX_0, F_RX_1);
+
+	printf("%d freqeuncy channels are selected\n", channel_num);
+	for(i=0; i<channel_num; i++){
+		printf("channel: %d, freq: %d\n", i, offset_tab[i][0] + offset_tab[i][2]);
+	}
+
 	/* set configuration for RF chains */
 	memset(&rfconf, 0, sizeof(rfconf));
-	
-	rfconf.enable = true;
-	rfconf.freq_hz = F_RX_0;
-	lgw_rxrf_setconf(0, rfconf); /* radio A, f0 */
-	
-	rfconf.enable = true;
-	rfconf.freq_hz = F_RX_1;
-	lgw_rxrf_setconf(1, rfconf); /* radio B, f1 */
-	
+
 	/* set configuration for LoRa multi-SF channels (bandwidth cannot be set) */
 	memset(&ifconf, 0, sizeof(ifconf));
+
 	
-	ifconf.enable = true;
-	ifconf.rf_chain = 0;
-	ifconf.freq_hz = -300000;
-	ifconf.datarate = DR_LORA_MULTI;
-	lgw_rxif_setconf(0, ifconf); /* chain 0: LoRa 125kHz, all SF, on f0 - 0.3 MHz */
-	
-	ifconf.enable = true;
-	ifconf.rf_chain = 0;
-	ifconf.freq_hz = 300000;
-	ifconf.datarate = DR_LORA_MULTI;
-	lgw_rxif_setconf(1, ifconf); /* chain 1: LoRa 125kHz, all SF, on f0 + 0.3 MHz */
-	
-	ifconf.enable = true;
-	ifconf.rf_chain = 1;
-	ifconf.freq_hz = -300000;
-	ifconf.datarate = DR_LORA_MULTI;
-	lgw_rxif_setconf(2, ifconf); /* chain 2: LoRa 125kHz, all SF, on f1 - 0.3 MHz */
-	
-	ifconf.enable = true;
-	ifconf.rf_chain = 1;
-	ifconf.freq_hz = 300000;
-	ifconf.datarate = DR_LORA_MULTI;
-	lgw_rxif_setconf(3, ifconf); /* chain 3: LoRa 125kHz, all SF, on f1 + 0.3 MHz */
-	
-	#if (LGW_MULTI_NB >= 8)
-	ifconf.enable = true;
-	ifconf.rf_chain = 0;
-	ifconf.freq_hz = -100000;
-	ifconf.datarate = DR_LORA_MULTI;
-	lgw_rxif_setconf(4, ifconf); /* chain 4: LoRa 125kHz, all SF, on f0 - 0.1 MHz */
-	
-	ifconf.enable = true;
-	ifconf.rf_chain = 0;
-	ifconf.freq_hz = 100000;
-	ifconf.datarate = DR_LORA_MULTI;
-	lgw_rxif_setconf(5, ifconf); /* chain 5: LoRa 125kHz, all SF, on f0 + 0.1 MHz */
-	
-	ifconf.enable = true;
-	ifconf.rf_chain = 1;
-	ifconf.freq_hz = -100000;
-	ifconf.datarate = DR_LORA_MULTI;
-	lgw_rxif_setconf(6, ifconf); /* chain 6: LoRa 125kHz, all SF, on f1 - 0.1 MHz */
-	
-	ifconf.enable = true;
-	ifconf.rf_chain = 1;
-	ifconf.freq_hz = 100000;
-	ifconf.datarate = DR_LORA_MULTI;
-	lgw_rxif_setconf(7, ifconf); /* chain 7: LoRa 125kHz, all SF, on f1 + 0.1 MHz */
-	#endif
+
+	/* initialize all channels */
+	for(i=0; i<channel_num; i++){
+		rfconf.enable = true;
+		rfconf.freq_hz = offset_tab[i][2];
+		lgw_rxrf_setconf(offset_tab[i][1], rfconf);
+
+		ifconf.enable = true;
+		ifconf.rf_chain = offset_tab[i][1];
+		ifconf.freq_hz = offset_tab[i][0];
+		ifconf.datarate = DR_LORA_MULTI;
+		lgw_rxif_setconf(i, ifconf); /* chain 0: LoRa 125kHz, all SF, on f0 - 0.3 MHz */
+	}
 	
 	/* set configuration for LoRa 'stand alone' channel */
 	memset(&ifconf, 0, sizeof(ifconf));
@@ -202,34 +196,6 @@ int main()
 	ifconf.datarate = 64000;
 	lgw_rxif_setconf(9, ifconf); /* chain 9: FSK 64kbps, on f1 MHz */
 	
-	/* set configuration for TX packet */
-	
-	memset(&txpkt, 0, sizeof(txpkt));
-	txpkt.freq_hz = F_TX;
-	txpkt.tx_mode = IMMEDIATE;
-	txpkt.rf_power = 10;
-	txpkt.modulation = MOD_LORA;
-	txpkt.bandwidth = BW_250KHZ;
-	txpkt.datarate = DR_LORA_SF10;
-	txpkt.coderate = CR_LORA_4_5;
-	strcpy((char *)txpkt.payload, "TX.TEST.LORA.GW.????" );
-	txpkt.size = 20;
-	txpkt.preamble = 6;
-	txpkt.rf_chain = 0;
-/*	
-	memset(&txpkt, 0, sizeof(txpkt));
-	txpkt.freq_hz = F_TX;
-	txpkt.tx_mode = IMMEDIATE;
-	txpkt.rf_power = 10;
-	txpkt.modulation = MOD_FSK;
-	txpkt.f_dev = 50;
-	txpkt.datarate = 64000;
-	strcpy((char *)txpkt.payload, "TX.TEST.LORA.GW.????" );
-	txpkt.size = 20;
-	txpkt.preamble = 4;
-	txpkt.rf_chain = 0;
-*/	
-	
 	/* connect, configure and start the LoRa concentrator */
 	i = lgw_start();
 	if (i == LGW_HAL_SUCCESS) {
@@ -248,7 +214,6 @@ int main()
 	// }
 	
 	while ((quit_sig != 1) && (exit_sig != 1)) {
-		loop_cnt++;
 		
 		/* fetch N packets */
 		nb_pkt = lgw_receive(ARRAY_SIZE(rxpkt), rxpkt);
@@ -260,6 +225,7 @@ int main()
 			for(i=0; i < nb_pkt; ++i) {
 				p = &rxpkt[i];
 				printf("---\nRcv pkt #%d >>", i+1);
+				printf("freq:%d\n", offset_tab[p->if_chain][2]+offset_tab[p->if_chain][0]);
 				if (p->status == STAT_CRC_OK) {
 					printf(" if_chain:%2d", p->if_chain);
 					printf(" tstamp:%010u", p->count_us);
@@ -309,26 +275,6 @@ int main()
 					printf(" invalid status ?!?\n\n");
 				}
 			}
-		}
-		
-		/* send a packet every X loop */
-		if (loop_cnt%16 == 0) {
-			/* 32b counter in the payload, big endian */
-			txpkt.payload[16] = 0xff & (tx_cnt >> 24);
-			txpkt.payload[17] = 0xff & (tx_cnt >> 16);
-			txpkt.payload[18] = 0xff & (tx_cnt >> 8);
-			txpkt.payload[19] = 0xff & tx_cnt;
-			i = lgw_send(txpkt); /* non-blocking scheduling of TX packet */
-			j = 0;
-			printf("+++\nSending packet #%d, rf path %d, return %d\nstatus -> ", tx_cnt, txpkt.rf_chain, i);
-			do {
-				++j;
-				wait_ms(100);
-				lgw_status(TX_STATUS, &status_var); /* get TX status */
-				printf("%d:", status_var);
-			} while ((status_var != TX_FREE) && (j < 100));
-			++tx_cnt;
-			printf("\nTX finished\n");
 		}
 	}
 	
