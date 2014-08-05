@@ -365,6 +365,16 @@ int lgw_get_trigcnt(uint32_t* trig_cnt_us);
 */
 const char* lgw_version_info(void);
 
+typedef enum{
+	ID_NULL = 0,
+	ID_SX1255 = (0x11),
+	ID_SX1257 = (0x21)
+}lgw_id_t;
+
+lgw_id_t lgw_get_radio_id(uint8_t rf_chain);
+
+int lgw_auto_check(void);
+
 #endif
 
 /* --- EOF ------------------------------------------------------------------ */

@@ -130,14 +130,14 @@ F_register(24bit) = F_rf (Hz) / F_step(Hz)
 
 const uint8_t ifmod_config[LGW_IF_CHAIN_NB] = LGW_IFMODEM_CONFIG;
 
-const uint32_t rf_rx_lowfreq[LGW_RF_CHAIN_NB] = LGW_RF_RX_LOWFREQ;
-const uint32_t rf_rx_upfreq[LGW_RF_CHAIN_NB] = LGW_RF_RX_UPFREQ;
-const uint32_t rf_rx_bandwidth[LGW_RF_CHAIN_NB] = LGW_RF_RX_BANDWIDTH;
-const uint32_t rf_tx_lowfreq[LGW_RF_CHAIN_NB] = LGW_RF_TX_LOWFREQ;
-const uint32_t rf_tx_upfreq[LGW_RF_CHAIN_NB] = LGW_RF_TX_UPFREQ;
-const bool rf_tx_enable[LGW_RF_CHAIN_NB] = LGW_RF_TX_ENABLE;
-const bool rf_clkout[LGW_RF_CHAIN_NB] = LGW_RF_CLKOUT;
-
+uint32_t rf_rx_lowfreq[LGW_RF_CHAIN_NB] = LGW_RF_RX_LOWFREQ;
+uint32_t rf_rx_upfreq[LGW_RF_CHAIN_NB] = LGW_RF_RX_UPFREQ;
+uint32_t rf_rx_bandwidth[LGW_RF_CHAIN_NB] = LGW_RF_RX_BANDWIDTH;
+uint32_t rf_tx_lowfreq[LGW_RF_CHAIN_NB] = LGW_RF_TX_LOWFREQ;
+uint32_t rf_tx_upfreq[LGW_RF_CHAIN_NB] = LGW_RF_TX_UPFREQ;
+bool rf_tx_enable[LGW_RF_CHAIN_NB] = LGW_RF_TX_ENABLE;
+bool rf_clkout[LGW_RF_CHAIN_NB] = LGW_RF_CLKOUT;
+lgw_id_t rf_radio_chip_id[LGW_RF_CHAIN_NB] = { 0 };
 /* TX power management */
 
 #define	TX_POW_LUT_SIZE	16
@@ -586,11 +586,24 @@ int setup_sx125x(uint8_t rf_chain, uint32_t freq_hz) {
 		sx125x_write(rf_chain, 0x10, SX125x_TX_DAC_CLK_SEL);
 		DEBUG_PRINTF("Note: SX125x #%d clock output disabled\n", rf_chain);
 	}
+
+#if 1
+	if(rf_radio_chip_id[rf_chain] == ID_SX1255){
+		DEBUG_PRINTF("CHAIN %c SX1255\n", (rf_chain == 0? 'A' :'B'));
+		sx125x_write(rf_chain, 0x28, SX125x_XOSC_GM_STARTUP + SX125x_XOSC_DISABLE*16);
+	}else if(rf_radio_chip_id[rf_chain] == ID_SX1257){
+		DEBUG_PRINTF("CHAIN %c SX1257\n", (rf_chain == 0? 'A' :'B'));
+		sx125x_write(rf_chain, 0x26, SX125x_XOSC_GM_STARTUP + SX125x_XOSC_DISABLE*16);
+	}else{
+		DEBUG_PRINTF("CHAIN %c UNKNOWN\n", (rf_chain == 0? 'A' :'B'));
+	}
+#else
 	#if (CFG_RADIO_1257 == 1)
 	sx125x_write(rf_chain, 0x26, SX125x_XOSC_GM_STARTUP + SX125x_XOSC_DISABLE*16);
 	#elif (CFG_RADIO_1255 == 1)
 	sx125x_write(rf_chain, 0x28, SX125x_XOSC_GM_STARTUP + SX125x_XOSC_DISABLE*16);
 	#endif
+#endif
 	
 	if (rf_enable[rf_chain] == true) {
 		/* Tx gain and trim */
@@ -604,6 +617,20 @@ int setup_sx125x(uint8_t rf_chain, uint32_t freq_hz) {
 		sx125x_write(rf_chain, 0x0E, SX125x_ADC_TEMP + SX125x_RX_PLL_BW*2);
 		
 		/* set RX PLL frequency */
+#if 1
+		if(rf_radio_chip_id[rf_chain] == ID_SX1255){
+			DEBUG_PRINTF("CHAIN %c SX1255\n", (rf_chain == 0? 'A' :'B'));
+			part_int = freq_hz / (SX125x_32MHz_FRAC << 7); /* integer part, gives the MSB */
+			part_frac = ((freq_hz % (SX125x_32MHz_FRAC << 7)) << 9) / SX125x_32MHz_FRAC; /* fractional part, gives middle part and LSB */
+		}else if(rf_radio_chip_id[rf_chain] == ID_SX1257){
+			DEBUG_PRINTF("CHAIN %c SX1257\n", (rf_chain == 0? 'A' :'B'));
+			part_int = freq_hz / (SX125x_32MHz_FRAC << 8); /* integer part, gives the MSB */
+			part_frac = ((freq_hz % (SX125x_32MHz_FRAC << 8)) << 8) / SX125x_32MHz_FRAC; /* fractional part, gives middle part and LSB */
+		}else{
+			DEBUG_PRINTF("CHAIN %c UNKNOWN\n", (rf_chain == 0? 'A' :'B'));
+			return -1;
+		}
+#else
 		#if (CFG_RADIO_1257 == 1)
 		part_int = freq_hz / (SX125x_32MHz_FRAC << 8); /* integer part, gives the MSB */
 		part_frac = ((freq_hz % (SX125x_32MHz_FRAC << 8)) << 8) / SX125x_32MHz_FRAC; /* fractional part, gives middle part and LSB */
@@ -611,6 +638,7 @@ int setup_sx125x(uint8_t rf_chain, uint32_t freq_hz) {
 		part_int = freq_hz / (SX125x_32MHz_FRAC << 7); /* integer part, gives the MSB */
 		part_frac = ((freq_hz % (SX125x_32MHz_FRAC << 7)) << 9) / SX125x_32MHz_FRAC; /* fractional part, gives middle part and LSB */
 		#endif
+#endif
 		sx125x_write(rf_chain, 0x01,0xFF & part_int); /* Most Significant Byte */
 		sx125x_write(rf_chain, 0x02,0xFF & (part_frac >> 8)); /* middle byte */
 		sx125x_write(rf_chain, 0x03,0xFF & part_frac); /* Least Significant Byte */
@@ -966,10 +994,51 @@ int lgw_start(void) {
 	wait_ms(5);
 	lgw_reg_w(LGW_RADIO_RST,0);
 	
+	rf_clkout[0] = true;
+	rf_clkout[1] = true;
+
+	rf_radio_chip_id[0] = sx125x_read(0, 7);
+	rf_radio_chip_id[1] = sx125x_read(1, 7);
+
+	if(rf_radio_chip_id[0] == ID_SX1255){
+		DEBUG_MSG("CHAIN A SX1255\n");
+		rf_rx_lowfreq[0] = 400000000;
+		rf_rx_upfreq[0] = 510000000;
+		rf_tx_lowfreq[0] = 400000000;
+		rf_tx_upfreq[0] = 510000000;
+	}else if(rf_radio_chip_id[0] == ID_SX1257){
+		DEBUG_MSG("CHAIN A SX1257\n");
+		rf_rx_lowfreq[0] = 868000000;
+		rf_rx_upfreq[0] = 1020000000;
+		rf_tx_lowfreq[0] = 868000000;
+		rf_tx_upfreq[0] = 1020000000;
+	}else{
+		DEBUG_MSG("CHAIN A UNKNOWN\n");
+	}
+
+	if(rf_radio_chip_id[1] == ID_SX1255){
+		DEBUG_MSG("CHAIN B SX1255\n");
+		rf_rx_lowfreq[1] = 400000000;
+		rf_rx_upfreq[1] = 510000000;
+		rf_tx_lowfreq[1] = 400000000;
+		rf_tx_upfreq[1] = 510000000;
+	}else if(rf_radio_chip_id[1] == ID_SX1257){
+		DEBUG_MSG("CHAIN B SX1257\n");
+		rf_rx_lowfreq[1] = 868000000;
+		rf_rx_upfreq[1] = 1020000000;
+		rf_tx_lowfreq[1] = 868000000;
+		rf_tx_upfreq[1] = 1020000000;
+	}else{
+		DEBUG_MSG("CHAIN B UNKNOWN\n");
+	}
+
 	/* setup the radios */
 	setup_sx125x(0, rf_rx_freq[0]);
 	setup_sx125x(1, rf_rx_freq[1]);
 	
+	/** for test purpose*/
+	//return LGW_HAL_ERROR;
+#if 0
 	/* select calibration command */
 	cal_cmd = 0;
 	cal_cmd |= rf_enable[0] ? 0x01 : 0x00; /* Bit 0: Calibrate Rx IQ mismatch compensation on radio A */
@@ -1064,7 +1133,7 @@ int lgw_start(void) {
 		lgw_reg_r(LGW_DBG_AGC_MCU_RAM_DATA, &read_val);
 		cal_offset_b_q[i] = (int8_t)read_val;
 	}
-	
+#endif
 	/* load adjusted parameters */
 	lgw_constant_adjust();
 	
@@ -1781,5 +1850,74 @@ const char* lgw_version_info() {
 	return lgw_version_string;
 }
 
+int lgw_auto_check(void)
+{
+	int reg_stat;
+
+	reg_stat = lgw_connect();
+	if (reg_stat == LGW_REG_ERROR) {
+		DEBUG_MSG("ERROR: FAIL TO CONNECT BOARD\n");
+		return LGW_HAL_ERROR;
+	}
+
+	/* ungate clocks (gated by default) */
+	lgw_reg_w(LGW_GLOBAL_EN, 1);
+	
+	/* switch on and reset the radios (also starts the 32 MHz XTAL) */
+	lgw_reg_w(LGW_RADIO_A_EN,1);
+	lgw_reg_w(LGW_RADIO_B_EN,1);
+	wait_ms(500); /* TODO: optimize */
+	lgw_reg_w(LGW_RADIO_RST,1);
+	wait_ms(5);
+	lgw_reg_w(LGW_RADIO_RST,0);
+
+	rf_radio_chip_id[0] = sx125x_read(0, 7);
+	rf_radio_chip_id[1] = sx125x_read(1, 7);
+
+	if(rf_radio_chip_id[0] == ID_SX1255){
+		DEBUG_MSG("CHAIN A SX1255\n");
+		rf_rx_lowfreq[0] = 400000000;
+		rf_rx_upfreq[0] = 510000000;
+		rf_tx_lowfreq[0] = 400000000;
+		rf_tx_upfreq[0] = 510000000;
+	}else if(rf_radio_chip_id[0] == ID_SX1257){
+		DEBUG_MSG("CHAIN A SX1257\n");
+		rf_rx_lowfreq[0] = 868000000;
+		rf_rx_upfreq[0] = 1020000000;
+		rf_tx_lowfreq[0] = 868000000;
+		rf_tx_upfreq[0] = 1020000000;
+	}else{
+		DEBUG_MSG("CHAIN A UNKNOWN\n");
+	}
+
+	if(rf_radio_chip_id[1] == ID_SX1255){
+		DEBUG_MSG("CHAIN B SX1255\n");
+		rf_rx_lowfreq[1] = 400000000;
+		rf_rx_upfreq[1] = 510000000;
+		rf_tx_lowfreq[1] = 400000000;
+		rf_tx_upfreq[1] = 510000000;
+	}else if(rf_radio_chip_id[1] == ID_SX1257){
+		DEBUG_MSG("CHAIN B SX1257\n");
+		rf_rx_lowfreq[1] = 868000000;
+		rf_rx_upfreq[1] = 1020000000;
+		rf_tx_lowfreq[1] = 868000000;
+		rf_tx_upfreq[1] = 1020000000;
+	}else{
+		DEBUG_MSG("CHAIN B UNKNOWN\n");
+	}
+
+	return LGW_HAL_SUCCESS;
+}
+
+/* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ */
+
+lgw_id_t lgw_get_radio_id(uint8_t rf_chain)
+{
+	if( rf_chain >= LGW_RF_CHAIN_NB ){	
+		return ID_NULL;
+	}
+
+	return rf_radio_chip_id[rf_chain];
+}
 
 /* --- EOF ------------------------------------------------------------------ */
