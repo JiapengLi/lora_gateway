@@ -254,7 +254,7 @@ int main(int argc, char ** argv)
 
 	if( lgw_get_radio_id(0) == ID_SX1255 ){
 		if(rx_freq0>510000000 || rx_freq0<400000000){
-			lgw_log(LOG_PRIORITY_FATAL, "ERROR: Radio A freqeuncy must between 400MHz and 1020MHz for SX1255");
+			lgw_log(LOG_PRIORITY_FATAL, "ERROR: Radio A freqeuncy must between 400MHz and 510MHz for SX1255");
 			usage();
 			return -1;
 		}
@@ -278,7 +278,7 @@ int main(int argc, char ** argv)
 
 	if( lgw_get_radio_id(1) == ID_SX1255 ){
 		if(rx_freq1>510000000 || rx_freq1<400000000){
-			lgw_log(LOG_PRIORITY_FATAL, "ERROR: Radio B freqeuncy must between 400MHz and 1020MHz for SX1255");
+			lgw_log(LOG_PRIORITY_FATAL, "ERROR: Radio B freqeuncy must between 400MHz and 510MHz for SX1255");
 			usage();
 			return -1;
 		}
@@ -286,8 +286,8 @@ int main(int argc, char ** argv)
 			offset_tab[i][2] = rx_freq1;
 		}
 	}else if( lgw_get_radio_id(1) == ID_SX1257 && (channel_num>4) ) {
-		if(rx_freq1>102000000 || rx_freq1<862000000){
-			lgw_log(LOG_PRIORITY_FATAL, "ERROR: Radio B freqeuncy must between 862MHz and 1020MHz for SX1257");
+		if(rx_freq1>1020000000 || rx_freq1<862000000){
+			lgw_log(LOG_PRIORITY_FATAL, "ERROR: Radio B freqeuncy %d %.1fMHz must between 862MHz and 1020MHz for SX1257", rx_freq1, rx_freq1/1000000.0);
 			usage();
 			return -1;
 		}
