@@ -46,28 +46,6 @@ Maintainer: Sylvain Miermont and Jiapeng Li
 /* -------------------------------------------------------------------------- */
 /* --- PRIVATE CONSTANTS ---------------------------------------------------- */
 
-#if ((CFG_BAND_868 == 1) || ((CFG_BAND_FULL == 1) && (CFG_RADIO_1257 == 1)))
-	#define	F_RX_0	868500000
-	#define	F_RX_1	869500000
-	#define	F_TX	869000000
-#elif (CFG_BAND_780 == 1)
-	#define	F_RX_0	780500000
-	#define	F_RX_1	781500000
-	#define	F_TX	780000000
-#elif (CFG_BAND_915 == 1)
-	#define	F_RX_0	914500000
-	#define	F_RX_1	915500000
-	#define	F_TX	915000000
-#elif ((CFG_BAND_470 == 1) || ((CFG_BAND_FULL == 1) && (CFG_RADIO_1255 == 1)))
-	#define	F_RX_0	471500000
-	#define	F_RX_1	472500000
-	#define	F_TX	472000000
-#elif (CFG_BAND_433 == 1)
-	#define	F_RX_0	433500000
-	#define	F_RX_1	434500000
-	#define	F_TX	434000000
-#endif
-
 /* -------------------------------------------------------------------------- */
 /* --- PRIVATE VARIABLES ---------------------------------------------------- */
 
@@ -91,6 +69,8 @@ static void sig_handler(int sigio) {
 }
 
 #define CHANNEL_NUM		8
+#define F_RX_0 			(0)
+#define F_RX_1			(0)
 
 int offset_tab[CHANNEL_NUM][3] = {
 	{-400000, 0, F_RX_0,},
@@ -111,7 +91,7 @@ void usage(void)
 	printf("Usage: %s FreqA FreqB\n", str);
 	printf("FreqA<float> and FreqB<float> are in MHz\n");
 	printf("Eg: %s 433.1 434.1\n", str);
-	printf("to set Radio A: 433.1/433.3/433.5/433.7\n");
+	printf("To set Radio A: 433.1/433.3/433.5/433.7\n");
 	printf("       Radio B: 434.1/434.3/434.5/434.7\n");
 	printf("FreqA, FreqB are start freqeuncy of each radio\n");
 	printf("Channel offset 200KHz\n");
@@ -170,43 +150,40 @@ int main(int argc, char ** argv)
 	
 	int i, j;
 	int nb_pkt;
-	int rx_freq0, rx_freq1;
+	int rx_freq[2];
 	double f;
 	int channel_num = CHANNEL_NUM;
-
+	int rf_chain;
 	str = argv[0];
 	
 	switch(argc){
 		case 1:
-			rx_freq0 = 0;
-			rx_freq1 = 0;
+			rx_freq[0] = 0;
+			rx_freq[1] = 0;
 			break;
 		case 2:
 			f = atof(argv[1]) * 1000000;
-			rx_freq0 = f;
-			rx_freq1 = 0;
+			rx_freq[0] = f;
+			rx_freq[1] = 0;
 			channel_num = 4;
-			if(rx_freq0 == 0){
+			if(rx_freq[0] == 0){
 				usage();
 				exit(-1);
 			}
-			printf("Chain 0: %lf %d\n", f, rx_freq0);
-			rx_freq0 += 400000;
+			rx_freq[0] += 400000;
 			break;
 		case 3:
 			f = atof(argv[1]) * 1000000;
-			rx_freq0 = f;
+			rx_freq[0] = f;
 			f = atof(argv[2]) * 1000000;
-			rx_freq1 = f;
+			rx_freq[1] = f;
 			channel_num = CHANNEL_NUM;
-			if(rx_freq0 == 0 || rx_freq1 == 0){
+			if(rx_freq[0] == 0 || rx_freq[1] == 0){
 				usage();
 				exit(-1);
 			}
-			printf("Chain 0: %d\n", rx_freq0);
-			printf("Chain 1: %d\n", rx_freq1);
-			rx_freq0 += 400000;
-			rx_freq1 += 400000;
+			rx_freq[0] += 400000;
+			rx_freq[1] += 400000;
 			break;
 		default:
 			usage();
@@ -230,11 +207,11 @@ int main(int argc, char ** argv)
 
 	lgw_auto_check();
 
-	if( rx_freq1 == 0 && rx_freq0 == 0){
+	if( rx_freq[1] == 0 && rx_freq[0] == 0){
 		if( lgw_get_radio_id(0) == ID_SX1255 ){
-			rx_freq0 = 433500000;
+			rx_freq[0] = 433500000;
 		}else if( lgw_get_radio_id(0) == ID_SX1257 ){
-			rx_freq0 = 868500000;
+			rx_freq[0] = 868500000;
 		}else{
 			lgw_log(LOG_PRIORITY_FATAL, "Radio A chip unknown");
 			usage();
@@ -242,9 +219,9 @@ int main(int argc, char ** argv)
 		}
 
 		if( lgw_get_radio_id(1) == ID_SX1255 ){
-			rx_freq1 = 434500000;
+			rx_freq[1] = 434500000;
 		}else if( lgw_get_radio_id(1) == ID_SX1257 ){
-			rx_freq1 = 869500000;
+			rx_freq[1] = 869500000;
 		}else{
 			lgw_log(LOG_PRIORITY_FATAL, "Radio B chip unknown");
 			usage();
@@ -252,54 +229,37 @@ int main(int argc, char ** argv)
 		}		
 	}
 
-	if( lgw_get_radio_id(0) == ID_SX1255 ){
-		if(rx_freq0>510000000 || rx_freq0<400000000){
-			lgw_log(LOG_PRIORITY_FATAL, "ERROR: Radio A freqeuncy must between 400MHz and 510MHz for SX1255");
-			usage();
-			return -1;
+	for(rf_chain=0; rf_chain<2; rf_chain++) {
+		switch(lgw_freq_validate(rf_chain, rx_freq[rf_chain])){
+			case 0:
+				break;
+			case -1:
+			default:
+				lgw_log(LOG_PRIORITY_FATAL, "RF chain unsupported");
+				usage();
+				return -1;
+			case -2:
+				lgw_log(LOG_PRIORITY_FATAL, "ERROR: Radio %c freqeuncy must be between 400MHz and 510MHz for SX1255", (rf_chain == 0? 'A': 'B'));
+				usage();
+				return -1;
+			case -3:
+				lgw_log(LOG_PRIORITY_FATAL, "ERROR: Radio %c freqeuncy must be between 862MHz and 1020MHz for SX1257", (rf_chain == 0? 'A': 'B'));
+				usage();
+				return -1;
+			case -4:
+				lgw_log(LOG_PRIORITY_FATAL, "ERROR: Radio %c chip unknown", (rf_chain == 0? 'A': 'B'));
+				usage();
+				return -1;
 		}
-		for(i=0; i<4; i++){
-			offset_tab[i][2] = rx_freq0;
-		}
-	}else if( lgw_get_radio_id(0) == ID_SX1257 ){
-		if(rx_freq0>1020000000 || rx_freq0<862000000){
-			lgw_log(LOG_PRIORITY_FATAL, "ERROR: Radio A freqeuncy must between 862MHz and 1020MHz for SX1257");
-			usage();
-			return -1;
-		}
-		for(i=0; i<4; i++){
-			offset_tab[i][2] = rx_freq0;
-		}
-	}else{
-		lgw_log(LOG_PRIORITY_FATAL, "Radio A chip unknown");
-		usage();
-		return -1;
-	}
 
-	if( lgw_get_radio_id(1) == ID_SX1255 ){
-		if(rx_freq1>510000000 || rx_freq1<400000000){
-			lgw_log(LOG_PRIORITY_FATAL, "ERROR: Radio B freqeuncy must between 400MHz and 510MHz for SX1255");
-			usage();
-			return -1;
+		/** use RF Chain A only */
+		if(channel_num <= 4){
+			break;
 		}
-		for(i=4; i<8; i++){
-			offset_tab[i][2] = rx_freq1;
-		}
-	}else if( lgw_get_radio_id(1) == ID_SX1257 && (channel_num>4) ) {
-		if(rx_freq1>1020000000 || rx_freq1<862000000){
-			lgw_log(LOG_PRIORITY_FATAL, "ERROR: Radio B freqeuncy %d %.1fMHz must between 862MHz and 1020MHz for SX1257", rx_freq1, rx_freq1/1000000.0);
-			usage();
-			return -1;
-		}
-		for(i=4; i<8; i++){
-			offset_tab[i][2] = rx_freq1;
-		}
-	}else{
-		if(channel_num != 4){
-			lgw_log(LOG_PRIORITY_FATAL, "Radio B chip unknown");
-			usage();
-			return -1;
-		}
+	}
+	
+	for(i=0; i<8; i++){
+		offset_tab[i][2] = rx_freq[i/4];
 	}
 
 	/* beginning of LoRa concentrator-specific code */
@@ -307,7 +267,7 @@ int main(int argc, char ** argv)
 	
 	printf("*** Library version information ***\n%s\n\n", lgw_version_info());
 	
-	printf("F_RX0 = %d, F_RX1 = %d\n", F_RX_0, F_RX_1);
+	printf("F_RX0 = %d, F_RX1 = %d\n", rx_freq[0], rx_freq[1]);
 
 	printf("%d freqeuncy channels are selected\n", channel_num);
 	for(i=0; i<channel_num; i++){

@@ -269,8 +269,8 @@ int main(int argc, char **argv)
 	double fs = 0.0;
 	
 	/* frequency scan parameters (default values) */
-	uint32_t f_start = rf_rx_lowfreq_[RF_CHAIN]; /* in Hz */
-	uint32_t f_stop = rf_rx_upfreq_[RF_CHAIN]; /* in Hz */
+	uint32_t f_start = 0; /* in Hz */
+	uint32_t f_stop = 0; /* in Hz */
 	uint32_t f_step = 200000; /* 200 kHz step by default */
 	
 	/* RSSI measurement results */
@@ -299,6 +299,7 @@ int main(int argc, char **argv)
 			
 			case 'f':
 				sscanf(optarg, "%lf:%lf:%lf", &f1, &f2, &fs);
+				printf("freq_start %lf, freq_stop %lf", f1, f2);
 				/* check configuration sanity */
 				if (f2 < f1) {
 					MSG("ERROR: stop frequency must be bigger than start frequency\n");
@@ -325,7 +326,6 @@ int main(int argc, char **argv)
 				return EXIT_FAILURE;
 		}
 	}
-	printf("Scanning from %u Hz to %u Hz with a %u Hz frequency step\n", f_start, f_stop, f_step);
 	
 	/* configure signal handling */
 	sigemptyset(&sigact.sa_mask);
@@ -352,6 +352,22 @@ int main(int argc, char **argv)
 	lgw_reg_w(LGW_RADIO_RST,0);
 	wait_ms(5);
 	
+	if(f_start == 0 && f_stop == 0){	
+		if( 0x21 == sx125x_read_(RF_CHAIN, 7) ){
+			/** SX1257 */
+			f_start = 868000000;
+			f_stop = 1020000000;
+		}else if( 0x11 == sx125x_read_(RF_CHAIN, 7) ){
+			/** SX1255 */
+			f_start = 400000000;
+			f_stop = 510000000;
+		}else{
+			usage();
+			return -1;
+		}
+	}
+	printf("Scanning from %u Hz to %u Hz with a %u Hz frequency step\n", f_start, f_stop, f_step);
+
 	/* enter basic parameters for the radio */
 	sx125x_write_(RF_CHAIN, 0x10, SX125x_TX_DAC_CLK_SEL + SX125x_CLK_OUT*2);
 	sx125x_write_(RF_CHAIN, 0x0C, 0 + SX125x_RX_BB_GAIN*2 + SX125x_RX_LNA_GAIN*32); /* not required, firmware should take care of that */
@@ -394,7 +410,19 @@ int main(int argc, char **argv)
 		
 		/* set PLL to target frequency */
 		freq_hz = f_target - MEAS_IF;
-		
+
+#if 1
+		if( 0x21 == sx125x_read_(RF_CHAIN, 7) ){
+			part_int = freq_hz / (SX125x_32MHz_FRAC << 8); /* integer part, gives the MSB */
+			part_frac = ((freq_hz % (SX125x_32MHz_FRAC << 8)) << 8) / SX125x_32MHz_FRAC; /* fractional part, gives middle part and LSB */
+		}else if( 0x11 == sx125x_read_(RF_CHAIN, 7) ){
+			part_int = freq_hz / (SX125x_32MHz_FRAC << 7); /* integer part, gives the MSB */
+			part_frac = ((freq_hz % (SX125x_32MHz_FRAC << 7)) << 9) / SX125x_32MHz_FRAC; /* fractional part, gives middle part and LSB */
+		}else{
+			usage();
+			return -1;
+		}
+#else
 		#if (CFG_RADIO_1257 == 1)
 		part_int = freq_hz / (SX125x_32MHz_FRAC << 8); /* integer part, gives the MSB */
 		part_frac = ((freq_hz % (SX125x_32MHz_FRAC << 8)) << 8) / SX125x_32MHz_FRAC; /* fractional part, gives middle part and LSB */
@@ -402,7 +430,8 @@ int main(int argc, char **argv)
 		part_int = freq_hz / (SX125x_32MHz_FRAC << 7); /* integer part, gives the MSB */
 		part_frac = ((freq_hz % (SX125x_32MHz_FRAC << 7)) << 9) / SX125x_32MHz_FRAC; /* fractional part, gives middle part and LSB */
 		#endif
-		
+#endif
+
 		sx125x_write_(RF_CHAIN, 0x01,0xFF & part_int); /* Most Significant Byte */
 		sx125x_write_(RF_CHAIN, 0x02,0xFF & (part_frac >> 8)); /* middle byte */
 		sx125x_write_(RF_CHAIN, 0x03,0xFF & part_frac); /* Least Significant Byte */

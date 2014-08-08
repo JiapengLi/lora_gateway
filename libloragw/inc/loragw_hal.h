@@ -375,6 +375,8 @@ lgw_id_t lgw_get_radio_id(uint8_t rf_chain);
 
 int lgw_auto_check(void);
 
+int lgw_freq_validate(uint8_t rf_chain, uint32_t freq);
+
 #endif
 
 /* --- EOF ------------------------------------------------------------------ */

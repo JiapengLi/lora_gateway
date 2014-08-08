@@ -1008,9 +1008,9 @@ int lgw_start(void) {
 		rf_tx_upfreq[0] = 510000000;
 	}else if(rf_radio_chip_id[0] == ID_SX1257){
 		DEBUG_MSG("CHAIN A SX1257\n");
-		rf_rx_lowfreq[0] = 868000000;
+		rf_rx_lowfreq[0] = 862000000;
 		rf_rx_upfreq[0] = 1020000000;
-		rf_tx_lowfreq[0] = 868000000;
+		rf_tx_lowfreq[0] = 862000000;
 		rf_tx_upfreq[0] = 1020000000;
 	}else{
 		DEBUG_MSG("CHAIN A UNKNOWN\n");
@@ -1024,17 +1024,25 @@ int lgw_start(void) {
 		rf_tx_upfreq[1] = 510000000;
 	}else if(rf_radio_chip_id[1] == ID_SX1257){
 		DEBUG_MSG("CHAIN B SX1257\n");
-		rf_rx_lowfreq[1] = 868000000;
+		rf_rx_lowfreq[1] = 862000000;
 		rf_rx_upfreq[1] = 1020000000;
-		rf_tx_lowfreq[1] = 868000000;
+		rf_tx_lowfreq[1] = 862000000;
 		rf_tx_upfreq[1] = 1020000000;
 	}else{
 		DEBUG_MSG("CHAIN B UNKNOWN\n");
 	}
 
 	/* setup the radios */
-	setup_sx125x(0, rf_rx_freq[0]);
-	setup_sx125x(1, rf_rx_freq[1]);
+	if( rf_rx_freq[0]>=rf_rx_lowfreq[0] && rf_rx_freq[0]<=rf_rx_upfreq[0] ){
+		setup_sx125x(0, rf_rx_freq[0]);
+	}else{
+		DEBUG_MSG("CHAIN A Freqeucy Invalid\n");
+	}
+	if( rf_rx_freq[1]>=rf_rx_lowfreq[1] && rf_rx_freq[1]<=rf_rx_upfreq[1] ){
+		setup_sx125x(1, rf_rx_freq[1]);
+	}else{
+		DEBUG_MSG("CHAIN B Freqeucy Invalid\n");
+	}
 	
 	/** for test purpose*/
 	//return LGW_HAL_ERROR;
@@ -1636,7 +1644,21 @@ int lgw_send(struct lgw_pkt_tx_s pkt_data) {
 	/* fixed metadata, useful payload and misc metadata compositing */
 	transfer_size = TX_METADATA_NB + pkt_data.size; /*  */
 	payload_offset = TX_METADATA_NB; /* start the payload just after the metadata */
-	
+
+#if 1
+	if(rf_radio_chip_id[pkt_data.rf_chain] == ID_SX1255){
+		DEBUG_PRINTF("CHAIN %c SX1255\n", (pkt_data.rf_chain == 0? 'A' :'B'));
+		part_int = pkt_data.freq_hz / (SX125x_32MHz_FRAC << 7); /* integer part, gives the MSB */
+		part_frac = ((pkt_data.freq_hz % (SX125x_32MHz_FRAC << 7)) << 9) / SX125x_32MHz_FRAC; /* fractional part, gives middle part and LSB */
+	}else if(rf_radio_chip_id[pkt_data.rf_chain] == ID_SX1257){
+		DEBUG_PRINTF("CHAIN %c SX1257\n", (pkt_data.rf_chain == 0? 'A' :'B'));
+		part_int = pkt_data.freq_hz / (SX125x_32MHz_FRAC << 8); /* integer part, gives the MSB */
+		part_frac = ((pkt_data.freq_hz % (SX125x_32MHz_FRAC << 8)) << 8) / SX125x_32MHz_FRAC; /* fractional part, gives middle part and LSB */
+	}else{
+		DEBUG_PRINTF("CHAIN %c UNKNOWN\n", (pkt_data.rf_chain == 0? 'A' :'B'));
+		return -1;
+	}
+#else
 	/* metadata 0 to 2, TX PLL frequency */
 	#if (CFG_RADIO_1257 == 1)
 	part_int = pkt_data.freq_hz / (SX125x_32MHz_FRAC << 8); /* integer part, gives the MSB */
@@ -1645,7 +1667,8 @@ int lgw_send(struct lgw_pkt_tx_s pkt_data) {
 	part_int = pkt_data.freq_hz / (SX125x_32MHz_FRAC << 7); /* integer part, gives the MSB */
 	part_frac = ((pkt_data.freq_hz % (SX125x_32MHz_FRAC << 7)) << 9) / SX125x_32MHz_FRAC; /* fractional part, gives middle part and LSB */
 	#endif
-	
+#endif
+
 	buff[0] = 0xFF & part_int; /* Most Significant Byte */
 	buff[1] = 0xFF & (part_frac >> 8); /* middle byte */
 	buff[2] = 0xFF & part_frac; /* Least Significant Byte */
@@ -1882,9 +1905,9 @@ int lgw_auto_check(void)
 		rf_tx_upfreq[0] = 510000000;
 	}else if(rf_radio_chip_id[0] == ID_SX1257){
 		DEBUG_MSG("CHAIN A SX1257\n");
-		rf_rx_lowfreq[0] = 868000000;
+		rf_rx_lowfreq[0] = 862000000;
 		rf_rx_upfreq[0] = 1020000000;
-		rf_tx_lowfreq[0] = 868000000;
+		rf_tx_lowfreq[0] = 862000000;
 		rf_tx_upfreq[0] = 1020000000;
 	}else{
 		DEBUG_MSG("CHAIN A UNKNOWN\n");
@@ -1898,15 +1921,34 @@ int lgw_auto_check(void)
 		rf_tx_upfreq[1] = 510000000;
 	}else if(rf_radio_chip_id[1] == ID_SX1257){
 		DEBUG_MSG("CHAIN B SX1257\n");
-		rf_rx_lowfreq[1] = 868000000;
+		rf_rx_lowfreq[1] = 862000000;
 		rf_rx_upfreq[1] = 1020000000;
-		rf_tx_lowfreq[1] = 868000000;
+		rf_tx_lowfreq[1] = 862000000;
 		rf_tx_upfreq[1] = 1020000000;
 	}else{
 		DEBUG_MSG("CHAIN B UNKNOWN\n");
 	}
 
 	return LGW_HAL_SUCCESS;
+}
+
+int lgw_freq_validate(uint8_t rf_chain, uint32_t freq)
+{
+	if( rf_chain >= LGW_RF_CHAIN_NB ){	
+		return -1;
+	}
+
+	if(freq > rf_rx_upfreq[rf_chain] || freq < rf_rx_lowfreq[rf_chain]){
+		if(rf_radio_chip_id[rf_chain] == ID_SX1255){
+			return -2;
+		}else if(rf_radio_chip_id[rf_chain] == ID_SX1257){
+			return -3;
+		}else{
+			return -4;
+		}
+	} 
+
+	return 0;
 }
 
 /* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ */
