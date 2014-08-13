@@ -1,0 +1,16 @@
+*.csv
+*.o
+libloragw/inc/config.h
+libloragw/libloragw.a
+libloragw/test_loragw_gps
+libloragw/test_loragw_hal
+libloragw/test_loragw_reg
+libloragw/test_loragw_rx
+libloragw/test_loragw_spi
+libloragw/test_loragw_tx
+note
+util_band_survey/util_band_survey
+util_pkt_logger/global_conf.json
+util_pkt_logger/util_pkt_logger
+util_spi_stress/util_spi_stress
+util_tx_test/util_tx_test
