@@ -7,10 +7,10 @@
   (C)2013 Semtech-Cycleo
 
 Description:
-	Send a bunch of packets on a settable frequency
+	TX test function
 
 License: Revised BSD License, see LICENSE.TXT file include in the project
-Maintainer: Sylvain Miermont
+Maintainer: Sylvain Miermont, Jiapeng Li
 */
 
 
@@ -138,7 +138,7 @@ int main(int argc, char **argv)
 	
 	/* user entry parameters */
 	int xi = 0;
-	double xd = 0.0, f0, f1;
+	double f0, f1;
 	uint32_t f_min[LGW_RF_CHAIN_NB];
 	uint32_t f_max[LGW_RF_CHAIN_NB];
 	

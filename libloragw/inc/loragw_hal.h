@@ -50,7 +50,16 @@ Maintainer: Sylvain Miermont
 	#define LGW_XTAL_FREQU		32000000	/* frequency of the RF reference oscillator */
 	#define LGW_RF_CHAIN_NB		2	/* number of RF chains */
 	#define LGW_RF_RX_BANDWIDTH	{   1000000,   1000000}	/* bandwidth of the radios */
+#elif (CFG_RADIO_AUTO == 1)
+	#define LGW_XTAL_FREQU		32000000	/* frequency of the RF reference oscillator */
+	#define LGW_RF_CHAIN_NB		2	/* number of RF chains */
+	#define LGW_RF_RX_BANDWIDTH	{   1000000,   1000000}	/* bandwidth of the radios */
 #endif
+
+#define LGW_RF_SX1257_FREQ_MIN		(862000000)
+#define LGW_RF_SX1257_FREQ_MAX		(1020000000)
+#define LGW_RF_SX1255_FREQ_MIN		(400000000)
+#define LGW_RF_SX1255_FREQ_MAX		(510000000)
 
 /* band-specific parameters */
 /* to use array parameters, declare a local const and use 'rf_chain' as index */
@@ -65,6 +74,11 @@ Maintainer: Sylvain Miermont
 		#define LGW_RF_RX_UPFREQ	{ 510000000, 510000000}
 		#define LGW_RF_TX_LOWFREQ	{ 400000000, 400000000}
 		#define LGW_RF_TX_UPFREQ	{ 510000000, 510000000}
+	#elif (CFG_RADIO_AUTO == 1)
+		#define LGW_RF_RX_LOWFREQ	{          0,          0} /* use fake value to fill the frequency array */
+		#define LGW_RF_RX_UPFREQ	{ 1020000000, 1020000000} /* use fake value to fill the frequency array */
+		#define LGW_RF_TX_LOWFREQ	{          0,          0} /* use fake value to fill the frequency array */
+		#define LGW_RF_TX_UPFREQ	{ 1020000000, 1020000000} /* use fake value to fill the frequency array */
 	#endif
 #elif (CFG_BAND_780 == 1)
 	#define LGW_RF_RX_LOWFREQ	{ 779000000, 779000000}
@@ -373,7 +387,11 @@ typedef enum{
 
 lgw_id_t lgw_get_radio_id(uint8_t rf_chain);
 
+#if (CFG_RADIO_AUTO == 1)
 int lgw_auto_check(void);
+#else
+#define lgw_auto_check()
+#endif
 
 int lgw_freq_validate(uint8_t rf_chain, uint32_t freq);
 

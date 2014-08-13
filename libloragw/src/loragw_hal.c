@@ -321,6 +321,8 @@ typedef struct {
 	#define		CFG_RADIO_STR	"sx1257"
 #elif (CFG_RADIO_1255 == 1)
 	#define		CFG_RADIO_STR	"sx1255"
+#elif (CFG_RADIO_AUTO == 1)
+	#define		CFG_RADIO_STR	"auto-check"
 #else
 	#define		CFG_RADIO_STR	"radio?"
 #endif
@@ -386,7 +388,7 @@ modify using rxrf_setconf and rxif_setconf functions.
 The function _start then use that set to configure the hardware.
 
 Parameters validity and coherency is verified by the _setconf functions and
-the _start function assumes 
+the _start function assumes
 */
 
 static bool lgw_is_started;
@@ -433,7 +435,7 @@ void lgw_constant_adjust(void);
 int load_firmware(uint8_t target, uint8_t *firmware, uint16_t size) {
 	int reg_rst;
 	int reg_sel;
-	
+
 	/* check parameters */
 	CHECK_NULL(firmware);
 	if (target == MCU_ARB) {
@@ -454,20 +456,20 @@ int load_firmware(uint8_t target, uint8_t *firmware, uint16_t size) {
 		DEBUG_MSG("ERROR: NOT A VALID TARGET FOR LOADING FIRMWARE\n");
 		return -1;
 	}
-	
+
 	/* reset the targeted MCU */
 	lgw_reg_w(reg_rst, 1);
-	
+
 	/* set mux to access MCU program RAM and set address to 0 */
 	lgw_reg_w(reg_sel, 0);
 	lgw_reg_w(LGW_MCU_PROM_ADDR, 0);
-	
+
 	/* write the program in one burst */
 	lgw_reg_wb(LGW_MCU_PROM_DATA, firmware, size);
-	
+
 	/* give back control of the MCU program ram to the MCU */
 	lgw_reg_w(reg_sel, 1);
-	
+
 	return 0;
 }
 
@@ -475,7 +477,7 @@ int load_firmware(uint8_t target, uint8_t *firmware, uint16_t size) {
 
 void sx125x_write(uint8_t channel, uint8_t addr, uint8_t data) {
 	int reg_add, reg_dat, reg_cs;
-	
+
 	/* checking input parameters */
 	if (channel >= LGW_RF_CHAIN_NB) {
 		DEBUG_MSG("ERROR: INVALID RF_CHAIN\n");
@@ -485,7 +487,7 @@ void sx125x_write(uint8_t channel, uint8_t addr, uint8_t data) {
 		DEBUG_MSG("ERROR: ADDRESS OUT OF RANGE\n");
 		return;
 	}
-	
+
 	/* selecting the target radio */
 	switch (channel) {
 		case 0:
@@ -493,25 +495,25 @@ void sx125x_write(uint8_t channel, uint8_t addr, uint8_t data) {
 			reg_dat = LGW_SPI_RADIO_A__DATA;
 			reg_cs	= LGW_SPI_RADIO_A__CS;
 			break;
-			
+
 		case 1:
 			reg_add = LGW_SPI_RADIO_B__ADDR;
 			reg_dat = LGW_SPI_RADIO_B__DATA;
 			reg_cs	= LGW_SPI_RADIO_B__CS;
 			break;
-			
+
 		default:
 			DEBUG_PRINTF("ERROR: UNEXPECTED VALUE %d IN SWITCH STATEMENT\n", channel);
 			return;
 	}
-	
+
 	/* SPI master data write procedure */
 	lgw_reg_w(reg_cs, 0);
 	lgw_reg_w(reg_add, 0x80 | addr); /* MSB at 1 for write operation */
 	lgw_reg_w(reg_dat, data);
 	lgw_reg_w(reg_cs, 1);
 	lgw_reg_w(reg_cs, 0);
-	
+
 	return;
 }
 
@@ -520,7 +522,7 @@ void sx125x_write(uint8_t channel, uint8_t addr, uint8_t data) {
 uint8_t sx125x_read(uint8_t channel, uint8_t addr) {
 	int reg_add, reg_dat, reg_cs, reg_rb;
 	int32_t read_value;
-	
+
 	/* checking input parameters */
 	if (channel >= LGW_RF_CHAIN_NB) {
 		DEBUG_MSG("ERROR: INVALID RF_CHAIN\n");
@@ -530,7 +532,7 @@ uint8_t sx125x_read(uint8_t channel, uint8_t addr) {
 		DEBUG_MSG("ERROR: ADDRESS OUT OF RANGE\n");
 		return 0;
 	}
-	
+
 	/* selecting the target radio */
 	switch (channel) {
 		case 0:
@@ -539,19 +541,19 @@ uint8_t sx125x_read(uint8_t channel, uint8_t addr) {
 			reg_cs	= LGW_SPI_RADIO_A__CS;
 			reg_rb	= LGW_SPI_RADIO_A__DATA_READBACK;
 			break;
-			
+
 		case 1:
 			reg_add = LGW_SPI_RADIO_B__ADDR;
 			reg_dat = LGW_SPI_RADIO_B__DATA;
 			reg_cs	= LGW_SPI_RADIO_B__CS;
 			reg_rb	= LGW_SPI_RADIO_B__DATA_READBACK;
 			break;
-			
+
 		default:
 			DEBUG_PRINTF("ERROR: UNEXPECTED VALUE %d IN SWITCH STATEMENT\n", channel);
 			return 0;
 	}
-	
+
 	/* SPI master data read procedure */
 	lgw_reg_w(reg_cs, 0);
 	lgw_reg_w(reg_add, addr); /* MSB at 0 for read operation */
@@ -559,7 +561,7 @@ uint8_t sx125x_read(uint8_t channel, uint8_t addr) {
 	lgw_reg_w(reg_cs, 1);
 	lgw_reg_w(reg_cs, 0);
 	lgw_reg_r(reg_rb, &read_value);
-	
+
 	return (uint8_t)read_value;
 }
 
@@ -569,15 +571,15 @@ int setup_sx125x(uint8_t rf_chain, uint32_t freq_hz) {
 	uint32_t part_int;
 	uint32_t part_frac;
 	int cpt_attempts = 0;
-	
+
 	if (rf_chain >= LGW_RF_CHAIN_NB) {
 		DEBUG_MSG("ERROR: INVALID RF_CHAIN\n");
 		return -1;
 	}
-	
+
 	/* Get version to identify SX1255/57 silicon revision */
 	DEBUG_PRINTF("Note: SX125x #%d version register returned 0x%02x\n", rf_chain, sx125x_read(rf_chain, 0x07));
-	
+
 	/* General radio setup */
 	if (rf_clkout[rf_chain] == true) {
 		sx125x_write(rf_chain, 0x10, SX125x_TX_DAC_CLK_SEL + 2);
@@ -587,7 +589,7 @@ int setup_sx125x(uint8_t rf_chain, uint32_t freq_hz) {
 		DEBUG_PRINTF("Note: SX125x #%d clock output disabled\n", rf_chain);
 	}
 
-#if 1
+#if (CFG_RADIO_AUTO == 1)
 	if(rf_radio_chip_id[rf_chain] == ID_SX1255){
 		DEBUG_PRINTF("CHAIN %c SX1255\n", (rf_chain == 0? 'A' :'B'));
 		sx125x_write(rf_chain, 0x28, SX125x_XOSC_GM_STARTUP + SX125x_XOSC_DISABLE*16);
@@ -604,20 +606,20 @@ int setup_sx125x(uint8_t rf_chain, uint32_t freq_hz) {
 	sx125x_write(rf_chain, 0x28, SX125x_XOSC_GM_STARTUP + SX125x_XOSC_DISABLE*16);
 	#endif
 #endif
-	
+
 	if (rf_enable[rf_chain] == true) {
 		/* Tx gain and trim */
 		sx125x_write(rf_chain, 0x08, SX125x_TX_MIX_GAIN + SX125x_TX_DAC_GAIN*16);
 		sx125x_write(rf_chain, 0x0A, SX125x_TX_ANA_BW + SX125x_TX_PLL_BW*32);
 		sx125x_write(rf_chain, 0x0B, SX125x_TX_DAC_BW);
-		
+
 		/* Rx gain and trim */
 		sx125x_write(rf_chain, 0x0C, SX125x_LNA_ZIN + SX125x_RX_BB_GAIN*2 + SX125x_RX_LNA_GAIN*32);
 		sx125x_write(rf_chain, 0x0D, SX125x_RX_BB_BW + SX125x_RX_ADC_TRIM*4 + SX125x_RX_ADC_BW*32);
 		sx125x_write(rf_chain, 0x0E, SX125x_ADC_TEMP + SX125x_RX_PLL_BW*2);
-		
+
 		/* set RX PLL frequency */
-#if 1
+#if (CFG_RADIO_AUTO == 1)
 		if(rf_radio_chip_id[rf_chain] == ID_SX1255){
 			DEBUG_PRINTF("CHAIN %c SX1255\n", (rf_chain == 0? 'A' :'B'));
 			part_int = freq_hz / (SX125x_32MHz_FRAC << 7); /* integer part, gives the MSB */
@@ -642,7 +644,7 @@ int setup_sx125x(uint8_t rf_chain, uint32_t freq_hz) {
 		sx125x_write(rf_chain, 0x01,0xFF & part_int); /* Most Significant Byte */
 		sx125x_write(rf_chain, 0x02,0xFF & (part_frac >> 8)); /* middle byte */
 		sx125x_write(rf_chain, 0x03,0xFF & part_frac); /* Least Significant Byte */
-		
+
 		/* start and PLL lock */
 		do {
 			if (cpt_attempts >= PLL_LOCK_MAX_ATTEMPTS) {
@@ -658,14 +660,14 @@ int setup_sx125x(uint8_t rf_chain, uint32_t freq_hz) {
 	} else {
 		DEBUG_PRINTF("Note: SX125x #%d kept in standby mode\n", rf_chain);
 	}
-	
+
 	return 0;
 }
 
 /* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ */
 
 void lgw_constant_adjust(void) {
-	
+
 	/* I/Q path setup */
 	// lgw_reg_w(LGW_RX_INVERT_IQ,0); /* default 0 */
 	// lgw_reg_w(LGW_MODEM_INVERT_IQ,1); /* default 1 */
@@ -681,7 +683,7 @@ void lgw_constant_adjust(void) {
 	lgw_reg_w(LGW_RSSI_DEC_DEFAULT_VALUE,66); /* default 100 */
 	lgw_reg_w(LGW_DEC_GAIN_OFFSET,7); /* default 8 */
 	lgw_reg_w(LGW_CHAN_GAIN_OFFSET,6); /* default 7 */
-	
+
 	/* Correlator setup */
 	// lgw_reg_w(LGW_CORR_DETECT_EN,126); /* default 126 */
 	// lgw_reg_w(LGW_CORR_NUM_SAME_PEAK,4); /* default 4 */
@@ -700,7 +702,7 @@ void lgw_constant_adjust(void) {
 	// lgw_reg_w(LGW_CORR_SIG_NOISE_RATIO_SF10,4); /* default 4 */
 	// lgw_reg_w(LGW_CORR_SIG_NOISE_RATIO_SF11,4); /* default 4 */
 	// lgw_reg_w(LGW_CORR_SIG_NOISE_RATIO_SF12,4); /* default 4 */
-	
+
 	/* LoRa 'multi' demodulators setup */
 	// lgw_reg_w(LGW_PREAMBLE_SYMB1_NB,10); /* default 10 */
 	// lgw_reg_w(LGW_FREQ_TO_TIME_INVERT,29); /* default 29 */
@@ -722,7 +724,7 @@ void lgw_constant_adjust(void) {
 	// lgw_reg_w(LGW_ADJUST_MODEM_START_OFFSET_RDX8,0); /* default 0 */
 	// lgw_reg_w(LGW_ADJUST_MODEM_START_OFFSET_SF12_RDX4,4092); /* default 4092 */
 	// lgw_reg_w(LGW_MAX_PAYLOAD_LEN,255); /* default 255 */
-	
+
 	/* LoRa standalone 'MBWSSF' demodulator setup */
 	// lgw_reg_w(LGW_MBWSSF_PREAMBLE_SYMB1_NB,10); /* default 10 */
 	// lgw_reg_w(LGW_MBWSSF_FREQ_TO_TIME_INVERT,29); /* default 29 */
@@ -741,11 +743,11 @@ void lgw_constant_adjust(void) {
 	// lgw_reg_w(LGW_MBWSSF_PREAMBLE_FINE_TIMING_GAIN,1); /* default 1 */
 	// lgw_reg_w(LGW_MBWSSF_TRACKING_INTEGRAL,0); /* default 0 */
 	// lgw_reg_w(LGW_MBWSSF_AGC_FREEZE_ON_DETECT,1); /* default 1 */
-	
+
 	/* FSK datapath setup */
 	lgw_reg_w(LGW_FSK_RX_INVERT,1); /* default 0 */
 	lgw_reg_w(LGW_FSK_MODEM_INVERT_IQ,1); /* default 0 */
-	
+
 	/* FSK demodulator setup */
 	lgw_reg_w(LGW_FSK_RSSI_LENGTH,4); /* default 0 */
 	lgw_reg_w(LGW_FSK_PKT_MODE,1); /* variable length, default 0 */
@@ -761,10 +763,10 @@ void lgw_constant_adjust(void) {
 	// lgw_reg_w(LGW_FSK_BROADCAST,0); /* default 0 */
 	// lgw_reg_w(LGW_FSK_AUTO_AFC_ON,0); /* default 0 */
 	lgw_reg_w(LGW_FSK_PATTERN_TIMEOUT_CFG,128); /* sync timeout (allow 8 bytes preamble + 8 bytes sync word, default 0 */
-	
+
 	/* TX general parameters */
 	lgw_reg_w(LGW_TX_START_DELAY, TX_START_DELAY); /* default 0 */
-	
+
 	/* TX LoRa */
 	// lgw_reg_w(LGW_TX_MODE,0); /* default 0 */
 	lgw_reg_w(LGW_TX_SWAP_IQ,1); /* "normal" polarity; default 0 */
@@ -774,15 +776,15 @@ void lgw_constant_adjust(void) {
 	#elif (CFG_NET_PRIVATE == 1)
 	//lgw_reg_w(LGW_TX_FRAME_SYNCH_PEAK1_POS,1); /* default 1 */
 	//lgw_reg_w(LGW_TX_FRAME_SYNCH_PEAK2_POS,2); /* default 2 */
-	#endif	
-	
+	#endif
+
 	/* TX FSK */
 	// lgw_reg_w(LGW_FSK_TX_GAUSSIAN_EN,1); /* default 1 */
 	lgw_reg_w(LGW_FSK_TX_GAUSSIAN_SELECT_BT,2); /* Gaussian filter always on TX, default 0 */
 	lgw_reg_w(LGW_FSK_TX_PSIZE,2); /* default 0 */
 	// lgw_reg_w(LGW_FSK_TX_PATTERN_EN,1); /* default 1 */
 	// lgw_reg_w(LGW_FSK_TX_PREAMBLE_SEQ,0); /* default 0 */
-	
+
 	return;
 }
 
@@ -790,19 +792,19 @@ void lgw_constant_adjust(void) {
 /* --- PUBLIC FUNCTIONS DEFINITION ------------------------------------------ */
 
 int lgw_rxrf_setconf(uint8_t rf_chain, struct lgw_conf_rxrf_s conf) {
-	
+
 	/* check if the concentrator is running */
 	if (lgw_is_started == true) {
 		DEBUG_MSG("ERROR: CONCENTRATOR IS RUNNING, STOP IT BEFORE TOUCHING CONFIGURATION\n");
 		return LGW_HAL_ERROR;
 	}
-	
+
 	/* check input range (segfault prevention) */
 	if (rf_chain >= LGW_RF_CHAIN_NB) {
 		DEBUG_MSG("ERROR: NOT A VALID RF_CHAIN NUMBER\n");
 		return LGW_HAL_ERROR;
 	}
-	
+
 	/* check input parameters */
 	if (conf.freq_hz > rf_rx_upfreq[rf_chain]) {
 		DEBUG_MSG("ERROR: FREQUENCY TOO HIGH FOR THAT RF_CHAIN\n");
@@ -811,13 +813,13 @@ int lgw_rxrf_setconf(uint8_t rf_chain, struct lgw_conf_rxrf_s conf) {
 		DEBUG_MSG("ERROR: FREQUENCY TOO LOW FOR THAT RF_CHAIN\n");
 		return LGW_HAL_ERROR;
 	}
-	
+
 	/* set internal config according to parameters */
 	rf_enable[rf_chain] = conf.enable;
 	rf_rx_freq[rf_chain] = conf.freq_hz;
-	
+
 	DEBUG_PRINTF("Note: rf_chain %d configuration; en:%d freq:%d\n", rf_chain, rf_enable[rf_chain], rf_rx_freq[rf_chain]);
-	
+
 	return LGW_HAL_SUCCESS;
 }
 
@@ -829,13 +831,13 @@ int lgw_rxif_setconf(uint8_t if_chain, struct lgw_conf_rxif_s conf) {
 		DEBUG_MSG("ERROR: CONCENTRATOR IS RUNNING, STOP IT BEFORE TOUCHING CONFIGURATION\n");
 		return LGW_HAL_ERROR;
 	}
-	
+
 	/* check input range (segfault prevention) */
 	if (if_chain >= LGW_IF_CHAIN_NB) {
 		DEBUG_PRINTF("ERROR: %d NOT A VALID IF_CHAIN NUMBER\n", if_chain);
 		return LGW_HAL_ERROR;
 	}
-	
+
 	/* if chain is disabled, don't care about most parameters */
 	if (conf.enable == false) {
 		if_enable[if_chain] = false;
@@ -843,7 +845,7 @@ int lgw_rxif_setconf(uint8_t if_chain, struct lgw_conf_rxif_s conf) {
 		DEBUG_PRINTF("Note: if_chain %d disabled\n", if_chain);
 		return LGW_HAL_SUCCESS;
 	}
-	
+
 	/* check 'general' parameters */
 	if (ifmod_config[if_chain] == IF_UNDEFINED) {
 		DEBUG_PRINTF("ERROR: IF CHAIN %d NOT CONFIGURABLE\n", if_chain);
@@ -860,8 +862,8 @@ int lgw_rxif_setconf(uint8_t if_chain, struct lgw_conf_rxif_s conf) {
 		return LGW_HAL_ERROR;
 	}
 	/* WARNING: if the channel is 250 or 500kHz wide, that check is insufficient */
-	
-	/* check parameters according to the type of IF chain + modem, 
+
+	/* check parameters according to the type of IF chain + modem,
 	fill default if necessary, and commit configuration if everything is OK */
 	switch (ifmod_config[if_chain]) {
 		case IF_LORA_STD:
@@ -892,10 +894,10 @@ int lgw_rxif_setconf(uint8_t if_chain, struct lgw_conf_rxif_s conf) {
 			} else {
 				lora_rx_ppm_offset = false;
 			}
-			
+
 			DEBUG_PRINTF("Note: LoRa 'std' if_chain %d configuration; en:%d freq:%d bw:%d dr:%d\n", if_chain, if_enable[if_chain], if_freq[if_chain], lora_rx_bw, lora_rx_sf);
 			break;
-		
+
 		case IF_LORA_MULTI:
 			/* fill default parameters if needed */
 			if (conf.bandwidth == BW_UNDEFINED) {
@@ -918,10 +920,10 @@ int lgw_rxif_setconf(uint8_t if_chain, struct lgw_conf_rxif_s conf) {
 			if_rf_chain[if_chain] = conf.rf_chain;
 			if_freq[if_chain] = conf.freq_hz;
 			lora_multi_sfmask[if_chain] = (uint8_t)(DR_LORA_MULTI & conf.datarate); /* filter SF out of the 7-12 range */
-			
+
 			DEBUG_PRINTF("Note: LoRa 'multi' if_chain %d configuration; en:%d freq:%d SF_mask:0x%02x\n", if_chain, if_enable[if_chain], if_freq[if_chain], lora_multi_sfmask[if_chain]);
 			break;
-		
+
 		case IF_FSK_STD:
 			/* fill default parameters if needed */
 			if (conf.bandwidth == BW_UNDEFINED) {
@@ -947,12 +949,12 @@ int lgw_rxif_setconf(uint8_t if_chain, struct lgw_conf_rxif_s conf) {
 			fsk_rx_dr = conf.datarate;
 			DEBUG_PRINTF("Note: FSK if_chain %d configuration; en:%d freq:%d bw:%d dr:%d (%d real dr)\n", if_chain, if_enable[if_chain], if_freq[if_chain], fsk_rx_bw, fsk_rx_dr, LGW_XTAL_FREQU/(LGW_XTAL_FREQU/fsk_rx_dr));
 			break;
-		
+
 		default:
 			DEBUG_PRINTF("ERROR: IF CHAIN %d TYPE NOT SUPPORTED\n", if_chain);
 			return LGW_HAL_ERROR;
 	}
-	
+
 	return LGW_HAL_SUCCESS;
 }
 
@@ -965,27 +967,27 @@ int lgw_start(void) {
 	uint8_t radio_select;
 	int32_t read_val;
 	uint8_t load_val;
-	
+
 	uint8_t cal_cmd;
 	uint16_t cal_time;
 	uint8_t cal_status;
-	
+
 	if (lgw_is_started == true) {
 		DEBUG_MSG("Note: LoRa concentrator already started, restarting it now\n");
 	}
-	
+
 	reg_stat = lgw_connect();
 	if (reg_stat == LGW_REG_ERROR) {
 		DEBUG_MSG("ERROR: FAIL TO CONNECT BOARD\n");
 		return LGW_HAL_ERROR;
 	}
-	
+
 	/* reset the registers (also shuts the radios down) */
 	lgw_soft_reset();
-	
+
 	/* ungate clocks (gated by default) */
 	lgw_reg_w(LGW_GLOBAL_EN, 1);
-	
+
 	/* switch on and reset the radios (also starts the 32 MHz XTAL) */
 	lgw_reg_w(LGW_RADIO_A_EN,1);
 	lgw_reg_w(LGW_RADIO_B_EN,1);
@@ -993,7 +995,7 @@ int lgw_start(void) {
 	lgw_reg_w(LGW_RADIO_RST,1);
 	wait_ms(5);
 	lgw_reg_w(LGW_RADIO_RST,0);
-	
+
 	rf_clkout[0] = true;
 	rf_clkout[1] = true;
 
@@ -1002,32 +1004,32 @@ int lgw_start(void) {
 
 	if(rf_radio_chip_id[0] == ID_SX1255){
 		DEBUG_MSG("CHAIN A SX1255\n");
-		rf_rx_lowfreq[0] = 400000000;
-		rf_rx_upfreq[0] = 510000000;
-		rf_tx_lowfreq[0] = 400000000;
-		rf_tx_upfreq[0] = 510000000;
+		rf_rx_lowfreq[0] = LGW_RF_SX1255_FREQ_MIN;
+		rf_rx_upfreq[0] = LGW_RF_SX1255_FREQ_MAX;
+		rf_tx_lowfreq[0] = LGW_RF_SX1255_FREQ_MIN;
+		rf_tx_upfreq[0] = LGW_RF_SX1255_FREQ_MAX;
 	}else if(rf_radio_chip_id[0] == ID_SX1257){
 		DEBUG_MSG("CHAIN A SX1257\n");
-		rf_rx_lowfreq[0] = 862000000;
-		rf_rx_upfreq[0] = 1020000000;
-		rf_tx_lowfreq[0] = 862000000;
-		rf_tx_upfreq[0] = 1020000000;
+		rf_rx_lowfreq[0] = LGW_RF_SX1257_FREQ_MIN;
+		rf_rx_upfreq[0] = LGW_RF_SX1257_FREQ_MAX;
+		rf_tx_lowfreq[0] = LGW_RF_SX1257_FREQ_MIN;
+		rf_tx_upfreq[0] = LGW_RF_SX1257_FREQ_MAX;
 	}else{
 		DEBUG_MSG("CHAIN A UNKNOWN\n");
 	}
 
 	if(rf_radio_chip_id[1] == ID_SX1255){
 		DEBUG_MSG("CHAIN B SX1255\n");
-		rf_rx_lowfreq[1] = 400000000;
-		rf_rx_upfreq[1] = 510000000;
-		rf_tx_lowfreq[1] = 400000000;
-		rf_tx_upfreq[1] = 510000000;
+		rf_rx_lowfreq[1] = LGW_RF_SX1255_FREQ_MIN;
+		rf_rx_upfreq[1] = LGW_RF_SX1255_FREQ_MAX;
+		rf_tx_lowfreq[1] = LGW_RF_SX1255_FREQ_MIN;
+		rf_tx_upfreq[1] = LGW_RF_SX1255_FREQ_MAX;
 	}else if(rf_radio_chip_id[1] == ID_SX1257){
 		DEBUG_MSG("CHAIN B SX1257\n");
-		rf_rx_lowfreq[1] = 862000000;
-		rf_rx_upfreq[1] = 1020000000;
-		rf_tx_lowfreq[1] = 862000000;
-		rf_tx_upfreq[1] = 1020000000;
+		rf_rx_lowfreq[1] = LGW_RF_SX1257_FREQ_MIN;
+		rf_rx_upfreq[1] = LGW_RF_SX1257_FREQ_MAX;
+		rf_tx_lowfreq[1] = LGW_RF_SX1257_FREQ_MIN;
+		rf_tx_upfreq[1] = LGW_RF_SX1257_FREQ_MAX;
 	}else{
 		DEBUG_MSG("CHAIN B UNKNOWN\n");
 	}
@@ -1036,17 +1038,17 @@ int lgw_start(void) {
 	if( rf_rx_freq[0]>=rf_rx_lowfreq[0] && rf_rx_freq[0]<=rf_rx_upfreq[0] ){
 		setup_sx125x(0, rf_rx_freq[0]);
 	}else{
-		DEBUG_MSG("CHAIN A Freqeucy Invalid\n");
+		DEBUG_PRINTF("CHAIN A Freqeucy %d Invalid\n", rf_rx_freq[0]);
+		// return LGW_HAL_ERROR;
 	}
 	if( rf_rx_freq[1]>=rf_rx_lowfreq[1] && rf_rx_freq[1]<=rf_rx_upfreq[1] ){
 		setup_sx125x(1, rf_rx_freq[1]);
 	}else{
-		DEBUG_MSG("CHAIN B Freqeucy Invalid\n");
+		DEBUG_PRINTF("CHAIN B Freqeucy %d Invalid\n", rf_rx_freq[1]);
+		// return LGW_HAL_ERROR;
 	}
-	
-	/** for test purpose*/
-	//return LGW_HAL_ERROR;
-#if 0
+
+#if (CFG_RADIO_AUTO != 1)
 	/* select calibration command */
 	cal_cmd = 0;
 	cal_cmd |= rf_enable[0] ? 0x01 : 0x00; /* Bit 0: Calibrate Rx IQ mismatch compensation on radio A */
@@ -1054,17 +1056,17 @@ int lgw_start(void) {
 	cal_cmd |= (rf_enable[0] && rf_tx_enable[0]) ? 0x04 : 0x00; /* Bit 2: Calibrate Tx DC offset on radio A */
 	cal_cmd |= (rf_enable[1] && rf_tx_enable[1]) ? 0x08 : 0x00; /* Bit 3: Calibrate Tx DC offset on radio B */
 	cal_cmd |= 0x10; /* Bit 4: 0: calibrate with DAC gain=2, 1: with DAC gain=3 (use 3) */
-	
+
 	#if (CFG_RADIO_1257 == 1)
 	cal_cmd |= 0x00; /* Bit 5: 0: SX1257, 1: SX1255 */
 	#elif (CFG_RADIO_1255 == 1)
 	cal_cmd |= 0x20; /* Bit 5: 0: SX1257, 1: SX1255 */
 	#endif
-	
+
 	#if ((CFG_BRD_1301REF868 == 1) || (CFG_BRD_1301REF780 == 1) || (CFG_BRD_1301REF433 == 1) || (CFG_BRD_KERLINK868 == 1))
 	cal_cmd |= 0x00; /* Bit 6-7: Board type 0: ref, 1: FPGA, 3: board X */
 	cal_time = 2300; /* measured between 2.1 and 2.2 sec, because 1 TX only */
-	#elif (CFG_BRD_1301REF433_V2 == 1) 
+	#elif (CFG_BRD_1301REF433_V2 == 1)
 	cal_cmd |= 0x00; /* Bit 6-7: Board type 0: ref, 1: FPGA, 3: board X */
 	cal_time = 5200; /* measured between 2.1 and 2.2 sec, because 1 TX only */
 	#elif (CFG_BRD_NANO868 == 1)
@@ -1074,7 +1076,7 @@ int lgw_start(void) {
 	cal_cmd |= 0xC0; /* Bit 6-7: Board type 0: ref, 1: FPGA, 3: board X */
 	cal_time = 4200; /* measured between 4.0 and 4.1 sec */
 	#endif
-	
+
 	/* Load the calibration firmware  */
 	load_firmware(MCU_AGC, cal_firmware, MCU_AGC_FW_BYTE);
 	lgw_reg_w(LGW_FORCE_HOST_RADIO_CTRL,0); /* gives to AGC MCU the control of the radios */
@@ -1082,12 +1084,12 @@ int lgw_start(void) {
 	lgw_reg_w(LGW_MCU_RST_1,0);
 	lgw_reg_w(LGW_PAGE_REG,3); /* Calibration will start on this condition as soon as MCU can talk to concentrator registers */
 	lgw_reg_w(LGW_EMERGENCY_FORCE_HOST_CTRL,0); /* Give control of concentrator registers to MCU */
-	
+
 	/* Wait for calibration to end */
 	DEBUG_PRINTF("Note: calibration started (time: %u ms)\n", cal_time);
 	wait_ms(cal_time); /* Wait for end of calibration */
 	lgw_reg_w(LGW_EMERGENCY_FORCE_HOST_CTRL,1); /* Take back control */
-	
+
 	/* Get calibration status */
 	lgw_reg_r(LGW_MCU_AGC_STATUS, &read_val);
 	cal_status = (uint8_t)read_val;
@@ -1125,7 +1127,7 @@ int lgw_start(void) {
 	if (rf_enable[1] && rf_tx_enable[1] && ((cal_status & 0x40) == 0)) {
 		DEBUG_MSG("WARNING: problem in calibration of radio B for TX imbalance\n");
 	}
-	
+
 	/* Get TX DC offset values */
 	for(i=0; i<=7; ++i) {
 		lgw_reg_w(LGW_DBG_AGC_MCU_RAM_ADDR, 0xA0+i);
@@ -1141,10 +1143,16 @@ int lgw_start(void) {
 		lgw_reg_r(LGW_DBG_AGC_MCU_RAM_DATA, &read_val);
 		cal_offset_b_q[i] = (int8_t)read_val;
 	}
-#endif
+#else
+	cal_cmd = cal_cmd;
+	cal_time = cal_time;
+	cal_status = cal_status;
+	cal_firmware[0] = cal_firmware[1];
+#endif /* CFG_RADIO_AUTO */
+
 	/* load adjusted parameters */
 	lgw_constant_adjust();
-	
+
 	/* Freq-to-time-drift calculation */
 	x = (2 * 8192000000) / (uint64_t)(rf_rx_lowfreq[0] + rf_rx_upfreq[0]); /* 64b calculation */
 	if (x > 63) {
@@ -1156,20 +1164,20 @@ int lgw_start(void) {
 		x = 63;
 	}
 	lgw_reg_w(LGW_MBWSSF_FREQ_TO_TIME_DRIFT, x); /* default 36 */
-	
+
 	/* configure LoRa 'multi' demodulators aka. LoRa 'sensor' channels (IF0-3) */
-	
+
 	radio_select = 0; /* IF mapping to radio A/B (per bit, 0=A, 1=B) */
 	for(i=0; i<LGW_MULTI_NB; ++i) {
 		radio_select += (if_rf_chain[i] == 1 ? 1 << i : 0); /* transform bool array into binary word */
 	}
 	/*
 	lgw_reg_w(LGW_RADIO_SELECT, radio_select);
-	
+
 	LGW_RADIO_SELECT is used for communication with the firmware, "radio_select"
 	will be loaded in LGW_RADIO_SELECT at the end of start procedure.
 	*/
-	
+
 	lgw_reg_w(LGW_IF_FREQ_0, IF_HZ_TO_REG(if_freq[0])); /* default -384 */
 	lgw_reg_w(LGW_IF_FREQ_1, IF_HZ_TO_REG(if_freq[1])); /* default -128 */
 	lgw_reg_w(LGW_IF_FREQ_2, IF_HZ_TO_REG(if_freq[2])); /* default 128 */
@@ -1180,7 +1188,7 @@ int lgw_start(void) {
 	lgw_reg_w(LGW_IF_FREQ_6, IF_HZ_TO_REG(if_freq[6])); /* default 128 */
 	lgw_reg_w(LGW_IF_FREQ_7, IF_HZ_TO_REG(if_freq[7])); /* default 384 */
 	#endif
-	
+
 	lgw_reg_w(LGW_CORR0_DETECT_EN, (if_enable[0] == true) ? lora_multi_sfmask[0] : 0); /* default 0 */
 	lgw_reg_w(LGW_CORR1_DETECT_EN, (if_enable[1] == true) ? lora_multi_sfmask[1] : 0); /* default 0 */
 	lgw_reg_w(LGW_CORR2_DETECT_EN, (if_enable[2] == true) ? lora_multi_sfmask[2] : 0); /* default 0 */
@@ -1191,11 +1199,11 @@ int lgw_start(void) {
 	lgw_reg_w(LGW_CORR6_DETECT_EN, (if_enable[6] == true) ? lora_multi_sfmask[6] : 0); /* default 0 */
 	lgw_reg_w(LGW_CORR7_DETECT_EN, (if_enable[7] == true) ? lora_multi_sfmask[7] : 0); /* default 0 */
 	#endif
-	
+
 	lgw_reg_w(LGW_PPM_OFFSET, 0x60); /* as the threshold is 16ms, use 0x60 to enable ppm_offset for SF12 and SF11 @125kHz*/
-	
+
 	lgw_reg_w(LGW_CONCENTRATOR_MODEM_ENABLE,1); /* default 0 */
-	
+
 	/* configure LoRa 'stand-alone' modem (IF8) */
 	lgw_reg_w(LGW_IF_FREQ_8, IF_HZ_TO_REG(if_freq[8])); /* MBWSSF modem (default 0) */
 	if (if_enable[8] == true) {
@@ -1224,7 +1232,7 @@ int lgw_start(void) {
 	} else {
 		lgw_reg_w(LGW_MBWSSF_MODEM_ENABLE, 0);
 	}
-	
+
 	/* configure FSK modem (IF9) */
 	lgw_reg_w(LGW_IF_FREQ_9, IF_HZ_TO_REG(if_freq[9])); /* FSK modem, default 0 */
 	if (if_enable[9] == true) {
@@ -1235,32 +1243,32 @@ int lgw_start(void) {
 	} else {
 		lgw_reg_w(LGW_FSK_MODEM_ENABLE,0);
 	}
-	
+
 	/* Load firmware */
 	load_firmware(MCU_ARB, arb_firmware, MCU_ARB_FW_BYTE);
 	load_firmware(MCU_AGC, agc_firmware, MCU_AGC_FW_BYTE);
-	
+
 	/* gives the AGC MCU control over radio, RF front-end and filter gain */
 	lgw_reg_w(LGW_FORCE_HOST_RADIO_CTRL,0);
 	lgw_reg_w(LGW_FORCE_HOST_FE_CTRL,0);
 	lgw_reg_w(LGW_FORCE_DEC_FILTER_GAIN,0);
-	
+
 	/* Get MCUs out of reset */
 	lgw_reg_w(LGW_RADIO_SELECT, 0); /* MUST not be = to 1 or 2 at firmware init */
 	lgw_reg_w(LGW_MCU_RST_0, 0);
 	lgw_reg_w(LGW_MCU_RST_1, 0);
-	
+
 	DEBUG_MSG("Info: Initialising AGC firmware...\n");
 	wait_ms(1);
-	
+
 	lgw_reg_r(LGW_MCU_AGC_STATUS, &read_val);
 	if (read_val != 0x20) {
 		DEBUG_PRINTF("ERROR: AGC FIRMWARE INITIALIZATION FAILURE, STATUS 0x%02X\n", (uint8_t)read_val);
 		return LGW_HAL_ERROR;
 	}
-	
+
 	/* Update Tx gain LUT and start AGC */
-	
+
 	#if (CUSTOM_TX_POW_TABLE == 1)
 		DEBUG_MSG("Info: loading custom TX gain table\n");
 		for(i=0; i<TX_POW_LUT_SIZE; ++i) {
@@ -1279,7 +1287,7 @@ int lgw_start(void) {
 		lgw_reg_w(LGW_RADIO_SELECT, AGC_CMD_WAIT); /* start a transaction */
 		wait_ms(1);
 		load_val = AGC_CMD_ABORT;
-		lgw_reg_w(LGW_RADIO_SELECT, load_val); 
+		lgw_reg_w(LGW_RADIO_SELECT, load_val);
 		wait_ms(1);
 		DEBUG_MSG("Info: TX gain LUT update skipped, using default LUT\n");
 		lgw_reg_r(LGW_MCU_AGC_STATUS, &read_val);
@@ -1288,13 +1296,13 @@ int lgw_start(void) {
 			return LGW_HAL_ERROR;
 		}
 	#endif
-	
+
 	/* Load chan_select firmware option */
 	lgw_reg_w(LGW_RADIO_SELECT, AGC_CMD_WAIT);
 	wait_ms(1);
 	lgw_reg_w(LGW_RADIO_SELECT, 0);
 	wait_ms(1);
-	
+
 	/* End AGC firmware init and check status */
 	lgw_reg_w(LGW_RADIO_SELECT, AGC_CMD_WAIT);
 	wait_ms(1);
@@ -1306,10 +1314,10 @@ int lgw_start(void) {
 		DEBUG_PRINTF("ERROR: AGC FIRMWARE INITIALIZATION FAILURE, STATUS 0x%02X\n", (uint8_t)read_val);
 		return LGW_HAL_ERROR;
 	}
-	
+
 	/* enable GPS event capture */
 	lgw_reg_w(LGW_GPS_EN,1);
-	
+
 	/* enable LEDs */
 	lgw_reg_w(LGW_GPIO_MODE,31);
 	// lgw_reg_w(LGW_GPIO_SELECT_OUTPUT,0); /* default 0 */
@@ -1320,7 +1328,7 @@ int lgw_start(void) {
 	DGPIO3 -> FSK RX modem activity (channel 9)
 	DGPIO4 -> TX modem active (either LoRa or FSK)
 	*/
-	
+
 	lgw_is_started = true;
 	return LGW_HAL_SUCCESS;
 }
@@ -1330,7 +1338,7 @@ int lgw_start(void) {
 int lgw_stop(void) {
 	lgw_soft_reset();
 	lgw_disconnect();
-	
+
 	lgw_is_started = false;
 	return LGW_HAL_SUCCESS;
 }
@@ -1348,52 +1356,52 @@ int lgw_receive(uint8_t max_pkt, struct lgw_pkt_rx_s *pkt_data) {
 	uint32_t delay_x, delay_y, delay_z; /* temporary variable for timestamp offset calculation */
 	uint32_t timestamp_correction; /* correction to account for processing delay */
 	uint32_t sf, cr, bw_pow, crc_en, ppm; /* used to calculate timestamp correction */
-	
+
 	/* check if the concentrator is running */
 	if (lgw_is_started == false) {
 		DEBUG_MSG("ERROR: CONCENTRATOR IS NOT RUNNING, START IT BEFORE RECEIVING\n");
 		return LGW_HAL_ERROR;
 	}
-	
+
 	/* check input variables */
 	if (max_pkt <= 0) {
 		DEBUG_PRINTF("ERROR: %d = INVALID MAX NUMBER OF PACKETS TO FETCH\n", max_pkt);
 		return LGW_HAL_ERROR;
 	}
 	CHECK_NULL(pkt_data);
-	
+
 	/* iterate max_pkt times at most */
 	for (nb_pkt_fetch = 0; nb_pkt_fetch < max_pkt; ++nb_pkt_fetch) {
-		
+
 		/* point to the proper struct in the struct array */
 		p = &pkt_data[nb_pkt_fetch];
-		
+
 		/* fetch all the RX FIFO data */
 		lgw_reg_rb(LGW_RX_PACKET_DATA_FIFO_NUM_STORED, buff, 5);
-		
+
 		/* how many packets are in the RX buffer ? Break if zero */
 		if (buff[0] == 0) {
 			break; /* no more packets to fetch, exit out of FOR loop */
 		}
-		
+
 		DEBUG_PRINTF("FIFO content: %x %x %x %x %x\n",buff[0],buff[1],buff[2],buff[3],buff[4]);
-		
+
 		p->size = buff[4];
 		sz = p->size;
 		stat_fifo = buff[3]; /* will be used later, need to save it before overwriting buff */
-		
+
 		/* get payload + metadata */
 		lgw_reg_rb(LGW_RX_DATA_BUF_DATA, buff, sz+RX_METADATA_NB);
-		
+
 		/* copy payload to result struct */
 		memcpy((void *)p->payload, (void *)buff, sz);
-		
+
 		/* process metadata */
 		p->if_chain = buff[sz+0];
 		ifmod = ifmod_config[p->if_chain];
 		DEBUG_PRINTF("[%d %d]\n", p->if_chain, ifmod);
 		p->rssi = (float)buff[sz+5] - RSSI_BOARD_OFFSET;
-		
+
 		if ((ifmod == IF_LORA_MULTI) || (ifmod == IF_LORA_STD)) {
 			DEBUG_MSG("Note: LoRa packet\n");
 			switch(stat_fifo & 0x07) {
@@ -1440,14 +1448,14 @@ int lgw_receive(uint8_t max_pkt, struct lgw_pkt_rx_s *pkt_data) {
 				case 4: p->coderate = CR_LORA_4_8; break;
 				default: p->coderate = CR_UNDEFINED;
 			}
-			
+
 			/* determine if 'PPM mode' is on, needed for timestamp correction */
 			if (SET_PPM_ON(p->bandwidth,p->datarate)) {
 				ppm = 1;
 			} else {
 				ppm = 0;
 			}
-			
+
 			/* timestamp correction code, base delay */
 			if (ifmod == IF_LORA_STD) { /* if packet was received on the stand-alone LoRa modem */
 				switch (lora_rx_bw) {
@@ -1464,7 +1472,7 @@ int lgw_receive(uint8_t max_pkt, struct lgw_pkt_rx_s *pkt_data) {
 						bw_pow = 4;
 						break;
 					default:
-						DEBUG_PRINTF("ERROR: UNEXPECTED VALUE %d IN SWITCH STATEMENT\n", p->bandwidth);	
+						DEBUG_PRINTF("ERROR: UNEXPECTED VALUE %d IN SWITCH STATEMENT\n", p->bandwidth);
 						delay_x = 0;
 						bw_pow = 0;
 				}
@@ -1472,7 +1480,7 @@ int lgw_receive(uint8_t max_pkt, struct lgw_pkt_rx_s *pkt_data) {
 				delay_x = 114;
 				bw_pow = 1;
 			}
-			
+
 			/* timestamp correction code, variable delay */
 			if ((sf >= 6) && (sf <= 12) && (bw_pow > 0)) {
 				if ((2*(sz + 2*crc_en) - (sf-7)) <= 0) { /* payload fits entirely in first 8 symbols */
@@ -1487,12 +1495,12 @@ int lgw_receive(uint8_t max_pkt, struct lgw_pkt_rx_s *pkt_data) {
 				timestamp_correction = 0;
 				DEBUG_MSG("WARNING: invalid packet, no timestamp correction\n");
 			}
-			
+
 			/* RSSI correction */
 			if (ifmod == IF_LORA_MULTI) {
 				p->rssi -= RSSI_MULTI_BIAS;
 			}
-			
+
 		} else if (ifmod == IF_FSK_STD) {
 			DEBUG_MSG("Note: FSK packet\n");
 			switch(stat_fifo & 0x07) {
@@ -1509,7 +1517,7 @@ int lgw_receive(uint8_t max_pkt, struct lgw_pkt_rx_s *pkt_data) {
 			p->datarate = fsk_rx_dr;
 			p->coderate = CR_UNDEFINED;
 			timestamp_correction = 0; // TODO: implement FSK timestamp correction
-			
+
 			/* RSSI correction */
 			p->rssi -= RSSI_FSK_BIAS;
 			p->rssi = ((p->rssi - RSSI_FSK_REF) * RSSI_FSK_SLOPE) + RSSI_FSK_REF;
@@ -1526,19 +1534,19 @@ int lgw_receive(uint8_t max_pkt, struct lgw_pkt_rx_s *pkt_data) {
 			p->coderate = CR_UNDEFINED;
 			timestamp_correction = 0;
 		}
-		
+
 		raw_timestamp = (uint32_t)buff[sz+6] + ((uint32_t)buff[sz+7] << 8) + ((uint32_t)buff[sz+8] << 16) + ((uint32_t)buff[sz+9] << 24);
 		p->count_us = raw_timestamp - timestamp_correction;
 		p->crc = (uint16_t)buff[sz+10] + ((uint16_t)buff[sz+11] << 8);
-		
+
 		/* get back info from configuration so that application doesn't have to keep track of it */
 		p->rf_chain = (uint8_t)if_rf_chain[p->if_chain];
 		p->freq_hz = (uint32_t)((int32_t)rf_rx_freq[p->rf_chain] + if_freq[p->if_chain]);
-		
+
 		/* advance packet FIFO */
 		lgw_reg_w(LGW_RX_PACKET_DATA_FIFO_NUM_STORED, 0);
 	}
-	
+
 	return nb_pkt_fetch;
 }
 
@@ -1554,19 +1562,19 @@ int lgw_send(struct lgw_pkt_tx_s pkt_data) {
 	int payload_offset = 0; /* start of the payload content in the databuffer */
 	uint8_t pow_index = 0; /* 4-bit value to set the firmware TX power */
 	uint8_t target_mix_gain = 0; /* used to select the proper I/Q offset correction */
-	
+
 	/* check if the concentrator is running */
 	if (lgw_is_started == false) {
 		DEBUG_MSG("ERROR: CONCENTRATOR IS NOT RUNNING, START IT BEFORE SENDING\n");
 		return LGW_HAL_ERROR;
 	}
-	
+
 	/* check input range (segfault prevention) */
 	if (pkt_data.rf_chain >= LGW_RF_CHAIN_NB) {
 		DEBUG_MSG("ERROR: INVALID RF_CHAIN TO SEND PACKETS\n");
 		return LGW_HAL_ERROR;
 	}
-	
+
 	/* check input variables */
 	if (rf_tx_enable[pkt_data.rf_chain] == false) {
 		DEBUG_MSG("ERROR: SELECTED RF_CHAIN IS DISABLED FOR TX ON SELECTED BOARD\n");
@@ -1621,14 +1629,14 @@ int lgw_send(struct lgw_pkt_tx_s pkt_data) {
 		DEBUG_MSG("ERROR: INVALID TX MODULATION\n");
 		return LGW_HAL_ERROR;
 	}
-	
+
 	/* interpretation of TX power */
 	for (pow_index = TX_POW_LUT_SIZE-1; pow_index > 0; pow_index--) {
 		if (tx_pow_table[pow_index].rf_power <= pkt_data.rf_power) {
 			break;
 		}
 	}
-	
+
 	/* loading TX imbalance correction */
 	target_mix_gain = tx_pow_table[pow_index].mix_gain;
 	target_mix_gain = (target_mix_gain <  8)?  8 : target_mix_gain;
@@ -1640,12 +1648,12 @@ int lgw_send(struct lgw_pkt_tx_s pkt_data) {
 		lgw_reg_w(LGW_TX_OFFSET_I, cal_offset_b_i[target_mix_gain - 8]);
 		lgw_reg_w(LGW_TX_OFFSET_Q, cal_offset_b_q[target_mix_gain - 8]);
 	}
-	
+
 	/* fixed metadata, useful payload and misc metadata compositing */
 	transfer_size = TX_METADATA_NB + pkt_data.size; /*  */
 	payload_offset = TX_METADATA_NB; /* start the payload just after the metadata */
 
-#if 1
+#if (CFG_RADIO_AUTO == 1)
 	if(rf_radio_chip_id[pkt_data.rf_chain] == ID_SX1255){
 		DEBUG_PRINTF("CHAIN %c SX1255\n", (pkt_data.rf_chain == 0? 'A' :'B'));
 		part_int = pkt_data.freq_hz / (SX125x_32MHz_FRAC << 7); /* integer part, gives the MSB */
@@ -1672,20 +1680,20 @@ int lgw_send(struct lgw_pkt_tx_s pkt_data) {
 	buff[0] = 0xFF & part_int; /* Most Significant Byte */
 	buff[1] = 0xFF & (part_frac >> 8); /* middle byte */
 	buff[2] = 0xFF & part_frac; /* Least Significant Byte */
-	
+
 	/* metadata 3 to 6, timestamp trigger value */
 	buff[3] = 0xFF & (pkt_data.count_us >> 24);
 	buff[4] = 0xFF & (pkt_data.count_us >> 16);
 	buff[5] = 0xFF & (pkt_data.count_us >> 8);
 	buff[6] = 0xFF &  pkt_data.count_us;
-	
+
 	/* parameters depending on modulation  */
 	if (pkt_data.modulation == MOD_LORA) {
 		/* metadata 7, modulation type, radio chain selection and TX power */
 		buff[7] = (0x20 & (pkt_data.rf_chain << 5)) | (0x0F & pow_index); /* bit 4 is 0 -> LoRa modulation */
-		
+
 		buff[8] = 0; /* metadata 8, not used */
-		
+
 		/* metadata 9, CRC, LoRa CR & SF */
 		switch (pkt_data.datarate) {
 			case DR_LORA_SF7: buff[9] = 7; break;
@@ -1708,10 +1716,10 @@ int lgw_send(struct lgw_pkt_tx_s pkt_data) {
 		} else {
 			DEBUG_MSG("Info: packet will be sent without CRC\n");
 		}
-		
+
 		/* metadata 10, payload size */
 		buff[10] = pkt_data.size;
-		
+
 		/* metadata 11, implicit header, modulation bandwidth, PPM offset & polarity */
 		switch (pkt_data.bandwidth) {
 			case BW_125KHZ: buff[11] = 0; break;
@@ -1728,7 +1736,7 @@ int lgw_send(struct lgw_pkt_tx_s pkt_data) {
 		if (pkt_data.invert_pol == true) {
 			buff[11] |= 0x10; /* set 'TX polarity' bit at 1 */
 		}
-		
+
 		/* metadata 12 & 13, LoRa preamble size */
 		if (pkt_data.preamble == 0) { /* if not explicit, use recommended LoRa preamble size */
 			pkt_data.preamble = STD_LORA_PREAMBLE;
@@ -1738,28 +1746,28 @@ int lgw_send(struct lgw_pkt_tx_s pkt_data) {
 		}
 		buff[12] = 0xFF & (pkt_data.preamble >> 8);
 		buff[13] = 0xFF & pkt_data.preamble;
-		
+
 		/* metadata 14 & 15, not used */
 		buff[14] = 0;
 		buff[15] = 0;
-		
+
 	} else if (pkt_data.modulation == MOD_FSK) {
 		/* metadata 7, modulation type, radio chain selection and TX power */
 		buff[7] = (0x20 & (pkt_data.rf_chain << 5)) | 0x10 | (0x0F & pow_index); /* bit 4 is 1 -> FSK modulation */
-		
+
 		buff[8] = 0; /* metadata 8, not used */
-		
+
 		/* metadata 9, frequency deviation */
 		buff[9] = pkt_data.f_dev;
-		
+
 		/* metadata 10, payload size */
 		buff[10] = pkt_data.size + 1; /* add a byte to encode payload length in the packet */
 		/* TODO: handle fixed packet length */
 		/* TODO: how to handle 255 bytes packets ?!? */
-		
+
 		/* metadata 11, packet mode, CRC, encoding */
 		buff[11] = (pkt_data.no_crc?0:0x02); /* always in fixed length packet mode, no DC-free encoding, CCITT CRC if CRC is not disabled  */
-		
+
 		/* metadata 12 & 13, FSK preamble size */
 		if (pkt_data.preamble == 0) { /* if not explicit, use LoRa MAC preamble size */
 			pkt_data.preamble = STD_FSK_PREAMBLE;
@@ -1769,54 +1777,54 @@ int lgw_send(struct lgw_pkt_tx_s pkt_data) {
 		}
 		buff[12] = 0xFF & (pkt_data.preamble >> 8);
 		buff[13] = 0xFF & pkt_data.preamble;
-		
+
 		/* metadata 14 & 15, FSK baudrate */
 		fsk_dr_div = (uint16_t)((uint32_t)LGW_XTAL_FREQU / pkt_data.datarate); /* Ok for datarate between 500bps and 250kbps */
 		buff[14] = 0xFF & (fsk_dr_div >> 8);
 		buff[15] = 0xFF & fsk_dr_div;
-		
+
 		/* insert payload size in the packet for variable mode */
 		buff[16] = pkt_data.size;
 		++transfer_size; /* one more byte to transfer to the TX modem */
 		++payload_offset; /* start the payload with one more byte of offset */
-		
+
 	} else {
 		DEBUG_MSG("ERROR: INVALID TX MODULATION..\n");
 		return LGW_HAL_ERROR;
 	}
-	
+
 	/* copy payload from user struct to buffer containing metadata */
 	memcpy((void *)(buff + payload_offset), (void *)(pkt_data.payload), pkt_data.size);
-	
+
 	/* reset TX command flags */
 	lgw_reg_w(LGW_TX_TRIG_IMMEDIATE, 0);
 	lgw_reg_w(LGW_TX_TRIG_DELAYED, 0);
 	lgw_reg_w(LGW_TX_TRIG_GPS, 0);
-	
+
 	/* put metadata + payload in the TX data buffer */
 	lgw_reg_w(LGW_TX_DATA_BUF_ADDR, 0);
 	lgw_reg_wb(LGW_TX_DATA_BUF_DATA, buff, transfer_size);
 	DEBUG_ARRAY(i, transfer_size, buff);
-	
+
 	/* send data */
 	switch(pkt_data.tx_mode) {
 		case IMMEDIATE:
 			lgw_reg_w(LGW_TX_TRIG_IMMEDIATE, 1);
 			break;
-			
+
 		case TIMESTAMPED:
 			lgw_reg_w(LGW_TX_TRIG_DELAYED, 1);
 			break;
-			
+
 		case ON_GPS:
 			lgw_reg_w(LGW_TX_TRIG_GPS, 1);
 			break;
-			
+
 		default:
 			DEBUG_PRINTF("ERROR: UNEXPECTED VALUE %d IN SWITCH STATEMENT\n", pkt_data.tx_mode);
 			return LGW_HAL_ERROR;
 	}
-	
+
 	return LGW_HAL_SUCCESS;
 }
 
@@ -1824,10 +1832,10 @@ int lgw_send(struct lgw_pkt_tx_s pkt_data) {
 
 int lgw_status(uint8_t select, uint8_t *code) {
 	int32_t read_value;
-	
+
 	/* check input variables */
 	CHECK_NULL(code);
-	
+
 	if (select == TX_STATUS) {
 		lgw_reg_r(LGW_TX_STATUS, &read_value);
 		if (lgw_is_started == false) {
@@ -1840,16 +1848,16 @@ int lgw_status(uint8_t select, uint8_t *code) {
 			*code = TX_SCHEDULED;
 		}
 		return LGW_HAL_SUCCESS;
-		
+
 	} else if (select == RX_STATUS) {
 		*code = RX_STATUS_UNKNOWN; /* todo */
 		return LGW_HAL_SUCCESS;
-		
+
 	} else {
 		DEBUG_MSG("ERROR: SELECTION INVALID, NO STATUS TO RETURN\n");
 		return LGW_HAL_ERROR;
 	}
-	
+
 }
 
 /* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ */
@@ -1857,7 +1865,7 @@ int lgw_status(uint8_t select, uint8_t *code) {
 int lgw_get_trigcnt(uint32_t* trig_cnt_us) {
 	int i;
 	int32_t val;
-	
+
 	i = lgw_reg_r(LGW_TIMESTAMP, &val);
 	if (i == LGW_REG_SUCCESS) {
 		*trig_cnt_us = (uint32_t)val;
@@ -1873,6 +1881,7 @@ const char* lgw_version_info() {
 	return lgw_version_string;
 }
 
+#if (CFG_RADIO_AUTO == 1)
 int lgw_auto_check(void)
 {
 	int reg_stat;
@@ -1885,7 +1894,7 @@ int lgw_auto_check(void)
 
 	/* ungate clocks (gated by default) */
 	lgw_reg_w(LGW_GLOBAL_EN, 1);
-	
+
 	/* switch on and reset the radios (also starts the 32 MHz XTAL) */
 	lgw_reg_w(LGW_RADIO_A_EN,1);
 	lgw_reg_w(LGW_RADIO_B_EN,1);
@@ -1899,42 +1908,43 @@ int lgw_auto_check(void)
 
 	if(rf_radio_chip_id[0] == ID_SX1255){
 		DEBUG_MSG("CHAIN A SX1255\n");
-		rf_rx_lowfreq[0] = 400000000;
-		rf_rx_upfreq[0] = 510000000;
-		rf_tx_lowfreq[0] = 400000000;
-		rf_tx_upfreq[0] = 510000000;
+		rf_rx_lowfreq[0] = LGW_RF_SX1255_FREQ_MIN;
+		rf_rx_upfreq[0] = LGW_RF_SX1255_FREQ_MAX;
+		rf_tx_lowfreq[0] = LGW_RF_SX1255_FREQ_MIN;
+		rf_tx_upfreq[0] = LGW_RF_SX1255_FREQ_MAX;
 	}else if(rf_radio_chip_id[0] == ID_SX1257){
 		DEBUG_MSG("CHAIN A SX1257\n");
-		rf_rx_lowfreq[0] = 862000000;
-		rf_rx_upfreq[0] = 1020000000;
-		rf_tx_lowfreq[0] = 862000000;
-		rf_tx_upfreq[0] = 1020000000;
+		rf_rx_lowfreq[0] = LGW_RF_SX1257_FREQ_MIN;
+		rf_rx_upfreq[0] = LGW_RF_SX1257_FREQ_MAX;
+		rf_tx_lowfreq[0] = LGW_RF_SX1257_FREQ_MIN;
+		rf_tx_upfreq[0] = LGW_RF_SX1257_FREQ_MAX;
 	}else{
 		DEBUG_MSG("CHAIN A UNKNOWN\n");
 	}
 
 	if(rf_radio_chip_id[1] == ID_SX1255){
 		DEBUG_MSG("CHAIN B SX1255\n");
-		rf_rx_lowfreq[1] = 400000000;
-		rf_rx_upfreq[1] = 510000000;
-		rf_tx_lowfreq[1] = 400000000;
-		rf_tx_upfreq[1] = 510000000;
+		rf_rx_lowfreq[1] = LGW_RF_SX1255_FREQ_MIN;
+		rf_rx_upfreq[1] = LGW_RF_SX1255_FREQ_MAX;
+		rf_tx_lowfreq[1] = LGW_RF_SX1255_FREQ_MIN;
+		rf_tx_upfreq[1] = LGW_RF_SX1255_FREQ_MAX;
 	}else if(rf_radio_chip_id[1] == ID_SX1257){
 		DEBUG_MSG("CHAIN B SX1257\n");
-		rf_rx_lowfreq[1] = 862000000;
-		rf_rx_upfreq[1] = 1020000000;
-		rf_tx_lowfreq[1] = 862000000;
-		rf_tx_upfreq[1] = 1020000000;
+		rf_rx_lowfreq[1] = LGW_RF_SX1257_FREQ_MIN;
+		rf_rx_upfreq[1] = LGW_RF_SX1257_FREQ_MAX;
+		rf_tx_lowfreq[1] = LGW_RF_SX1257_FREQ_MIN;
+		rf_tx_upfreq[1] = LGW_RF_SX1257_FREQ_MAX;
 	}else{
 		DEBUG_MSG("CHAIN B UNKNOWN\n");
 	}
 
 	return LGW_HAL_SUCCESS;
 }
+#endif
 
 int lgw_freq_validate(uint8_t rf_chain, uint32_t freq)
 {
-	if( rf_chain >= LGW_RF_CHAIN_NB ){	
+	if( rf_chain >= LGW_RF_CHAIN_NB ){
 		return -1;
 	}
 
@@ -1946,7 +1956,7 @@ int lgw_freq_validate(uint8_t rf_chain, uint32_t freq)
 		}else{
 			return -4;
 		}
-	} 
+	}
 
 	return 0;
 }
@@ -1955,7 +1965,7 @@ int lgw_freq_validate(uint8_t rf_chain, uint32_t freq)
 
 lgw_id_t lgw_get_radio_id(uint8_t rf_chain)
 {
-	if( rf_chain >= LGW_RF_CHAIN_NB ){	
+	if( rf_chain >= LGW_RF_CHAIN_NB ){
 		return ID_NULL;
 	}
 

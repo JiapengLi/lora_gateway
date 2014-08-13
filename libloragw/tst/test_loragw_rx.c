@@ -10,7 +10,7 @@ Description:
 	Minimum test program for the loragw_hal 'library'
 
 License: Revised BSD License, see LICENSE.TXT file include in the project
-Maintainer: Sylvain Miermont and Jiapeng Li
+Maintainer: Sylvain Miermont, Jiapeng Li
 */
 
 

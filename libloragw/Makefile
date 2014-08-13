@@ -39,6 +39,9 @@ ifeq ($(CFG_RADIO),sx1257)
 else ifeq ($(CFG_RADIO),sx1255)
   CFG_RADIO_MSG := Dual SX1255 transceivers, covering 400-510 MHz
   CFG_RADIO_OPT := CFG_RADIO_1255
+else ifeq ($(CFG_RADIO),auto)
+  CFG_RADIO_MSG := Auto check front end.
+  CFG_RADIO_OPT := CFG_RADIO_AUTO
 else
   $(error No radio chip selected, check library.cfg file.)
 endif

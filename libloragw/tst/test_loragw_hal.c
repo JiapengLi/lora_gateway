@@ -107,6 +107,8 @@ int main()
 	unsigned long loop_cnt = 0;
 	uint8_t status_var = 0;
 	
+	uint32_t f_tx, f_rx0, f_rx1;
+
 	/* configure signal handling */
 	sigemptyset(&sigact.sa_mask);
 	sigact.sa_flags = 0;
@@ -123,12 +125,38 @@ int main()
 	/* set configuration for RF chains */
 	memset(&rfconf, 0, sizeof(rfconf));
 	
+#if (CFG_RADIO_AUTO == 1)
+	lgw_auto_check();
+	if( lgw_get_radio_id(0) == ID_SX1255 ){
+		f_tx = 434000000;
+		f_rx0 = 433500000;
+	}else if( lgw_get_radio_id(0) == ID_SX1257 ){
+		f_tx = 869000000;
+		f_rx0 = 868500000;
+	}else{
+		printf("RF Chain A unknown\n");
+		return -1;
+	}
+	if( lgw_get_radio_id(1) == ID_SX1255 ){
+		f_rx1 = 869500000;
+	}else if( lgw_get_radio_id(1) == ID_SX1257 ){
+		f_rx1 = 869500000;
+	}else{
+		printf("RF Chain B unknown\n");
+		return -1;
+	}
+#else
+	f_tx = F_TX;
+	f_rx0 = F_RX_0;
+	f_rx1 = F_RX_1;
+#endif
+	
 	rfconf.enable = true;
-	rfconf.freq_hz = F_RX_0;
+	rfconf.freq_hz = f_rx0;
 	lgw_rxrf_setconf(0, rfconf); /* radio A, f0 */
 	
 	rfconf.enable = true;
-	rfconf.freq_hz = F_RX_1;
+	rfconf.freq_hz = f_rx1;
 	lgw_rxrf_setconf(1, rfconf); /* radio B, f1 */
 	
 	/* set configuration for LoRa multi-SF channels (bandwidth cannot be set) */
@@ -205,7 +233,7 @@ int main()
 	/* set configuration for TX packet */
 	
 	memset(&txpkt, 0, sizeof(txpkt));
-	txpkt.freq_hz = F_TX;
+	txpkt.freq_hz = f_tx;
 	txpkt.tx_mode = IMMEDIATE;
 	txpkt.rf_power = 10;
 	txpkt.modulation = MOD_LORA;
