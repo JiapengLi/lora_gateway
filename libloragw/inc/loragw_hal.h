@@ -360,7 +360,7 @@ int lgw_send(struct lgw_pkt_tx_s pkt_data);
 
 /**
 @brief Give the the status of different part of the LoRa concentrator
-@param select is used to select what status we want to know 
+@param select is used to select what status we want to know
 @param code is used to return the status code
 @return LGW_HAL_ERROR id the operation failed, LGW_HAL_SUCCESS else
 */

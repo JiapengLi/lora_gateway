@@ -135,13 +135,13 @@ int main(int argc, char **argv)
 {
 	int i;
 	uint8_t status_var;
-	
+
 	/* user entry parameters */
 	int xi = 0;
 	double f0, f1;
 	uint32_t f_min[LGW_RF_CHAIN_NB];
 	uint32_t f_max[LGW_RF_CHAIN_NB];
-	
+
 	/* application parameters */
 	uint32_t f_target[LGW_RF_CHAIN_NB] = {0}; /* target frequency */
 	int sf = 10; /* SF10 by default */
@@ -152,13 +152,13 @@ int main(int argc, char **argv)
 	int delay = 1000; /* 1 second between packets by default */
 	int repeat = -1; /* by default, repeat until stopped */
 	bool invert = false;
-	
+
 	/* RF configuration (TX fail if RF chain is not enabled) */
 	struct lgw_conf_rxrf_s rfconf = {true, 0};
-	
+
 	/* allocate memory for packet sending */
 	struct lgw_pkt_tx_s txpkt; /* array containing 1 outbound packet + metadata */
-	
+
 	/* loop variables (also use as counters in the packet payload) */
 	uint16_t cycle_count = 0;
 
@@ -171,7 +171,7 @@ int main(int argc, char **argv)
 				usage();
 				return EXIT_FAILURE;
 				break;
-			
+
 			case 'f': /* -f <float> target frequency in MHz */
 				i = sscanf(optarg, "%lf:%lf", &f0, &f1);
 				f_target[0] = (uint32_t)((f0*1e6) + 0.5); /* .5 Hz offset to get rounding instead of truncating */
@@ -185,7 +185,7 @@ int main(int argc, char **argv)
 				}
 
 				break;
-			
+
 			case 's': /* -s <int> Spreading Factor */
 				i = sscanf(optarg, "%i", &xi);
 				if ((i != 1) || (xi < 7) || (xi > 12)) {
@@ -196,7 +196,7 @@ int main(int argc, char **argv)
 					sf = xi;
 				}
 				break;
-			
+
 			case 'b': /* -b <int> Modulation bandwidth in kHz */
 				i = sscanf(optarg, "%i", &xi);
 				if ((i != 1) || ((xi != 125)&&(xi != 250)&&(xi != 500))) {
@@ -207,7 +207,7 @@ int main(int argc, char **argv)
 					bw = xi;
 				}
 				break;
-			
+
 			case 'p': /* -p <int> RF power */
 				i = sscanf(optarg, "%i", &xi);
 				if ((i != 1) || (xi < -60) || (xi > 60)) {
@@ -218,7 +218,7 @@ int main(int argc, char **argv)
 					pow = xi;
 				}
 				break;
-			
+
 			case 'r': /* -r <uint> preamble length (symbols) */
 				i = sscanf(optarg, "%i", &xi);
 				if ((i != 1) || (xi < 6)) {
@@ -229,7 +229,7 @@ int main(int argc, char **argv)
 					preamb = xi;
 				}
 				break;
-			
+
 			case 'z': /* -z <uint> payload length (bytes) */
 				i = sscanf(optarg, "%i", &xi);
 				if ((i != 1) || (xi <= 0)) {
@@ -240,7 +240,7 @@ int main(int argc, char **argv)
 					pl_size = xi;
 				}
 				break;
-			
+
 			case 't': /* -t <int> pause between packets (ms) */
 				i = sscanf(optarg, "%i", &xi);
 				if ((i != 1) || (xi < 0)) {
@@ -251,7 +251,7 @@ int main(int argc, char **argv)
 					delay = xi;
 				}
 				break;
-			
+
 			case 'x': /* -x <int> numbers of times the sequence is repeated */
 				i = sscanf(optarg, "%i", &xi);
 				if ((i != 1) || (xi < -1)) {
@@ -262,11 +262,11 @@ int main(int argc, char **argv)
 					repeat = xi;
 				}
 				break;
-			
+
 			case 'i': /* -i send packet using inverted modulation polarity */
 				invert = true;
 				break;
-			
+
 			default:
 				MSG("ERROR: argument parsing\n");
 				usage();
@@ -275,7 +275,7 @@ int main(int argc, char **argv)
 	}
 
 	lgw_auto_check();
-	if( f_target[0] == 0 && f_target[1] == 0 ){	
+	if( f_target[0] == 0 && f_target[1] == 0 ){
 		if( lgw_get_radio_id(0) == ID_SX1255 ){
 			f_target[0] = 433500000;
 			rf_chain_enable |= 0x01;
@@ -307,11 +307,11 @@ int main(int argc, char **argv)
 
 	if( lgw_get_radio_id(0) == ID_SX1255 ){
 		/* check parameter sanity */
-		f_min[0] = 400000000 + (500 * bw);
-		f_max[0] = 510000000 - (500 * bw);
+		f_min[0] = LGW_RF_SX1255_FREQ_MIN + (500 * bw);
+		f_max[0] = LGW_RF_SX1255_FREQ_MAX - (500 * bw);
 	}else if( lgw_get_radio_id(0) == ID_SX1257 ){
-		f_min[0] = 862000000 + (500 * bw);
-		f_max[0] = 1020000000 - (500 * bw);
+		f_min[0] = LGW_RF_SX1257_FREQ_MIN + (500 * bw);
+		f_max[0] = LGW_RF_SX1257_FREQ_MAX - (500 * bw);
 	}else{
 		lgw_log(LOG_PRIORITY_FATAL, "Radio A chip unknown");
 		usage();
@@ -319,24 +319,24 @@ int main(int argc, char **argv)
 	}
 	if( lgw_get_radio_id(1) == ID_SX1255 ){
 		/* check parameter sanity */
-		f_min[1] = 400000000 + (500 * bw);
-		f_max[1] = 510000000 - (500 * bw);
+		f_min[1] = LGW_RF_SX1255_FREQ_MIN + (500 * bw);
+		f_max[1] = LGW_RF_SX1255_FREQ_MAX - (500 * bw);
 	}else if( lgw_get_radio_id(1) == ID_SX1257 ){
-		f_min[1] = 862000000 + (500 * bw);
-		f_max[1] = 1020000000 - (500 * bw);
+		f_min[1] = LGW_RF_SX1257_FREQ_MIN + (500 * bw);
+		f_max[1] = LGW_RF_SX1257_FREQ_MAX - (500 * bw);
 	}else{
 		lgw_log(LOG_PRIORITY_FATAL, "Radio A chip unknown");
 		usage();
 		return -1;
 	}
-	
+
 	if ( (rf_chain_enable & 0x01) &&  ((f_target[0] < f_min[0]) || (f_target[0] > f_max[0])) ){
 		MSG("ERROR: frequency out of authorized band (accounting for modulation bandwidth)\n");
 		return EXIT_FAILURE;
 	}
 	printf("Sending %i packets on %u Hz (BW %i kHz, SF %i, %i bytes payload, %i symbols preamble) at %i dBm, with %i ms between each\n", \
 		repeat, f_target[0], bw, sf, pl_size, preamb, pow, delay);
-	
+
 	if ( (rf_chain_enable & 0x02) && ((f_target[1] < f_min[1]) || (f_target[1] > f_max[1])) ){
 		MSG("ERROR: frequency out of authorized band (accounting for modulation bandwidth)\n");
 		return EXIT_FAILURE;
@@ -351,7 +351,7 @@ int main(int argc, char **argv)
 	sigaction(SIGQUIT, &sigact, NULL);
 	sigaction(SIGINT, &sigact, NULL);
 	sigaction(SIGTERM, &sigact, NULL);
-	
+
 	/* starting the concentrator */ //TODO
 	rfconf.freq_hz = f_target[0];
 	lgw_rxrf_setconf(0, rfconf);
@@ -365,7 +365,7 @@ int main(int argc, char **argv)
 		MSG("ERROR: failed to start the concentrator\n");
 		return EXIT_FAILURE;
 	}
-	
+
 	/* fill-up payload and parameters */
 	memset(&txpkt, 0, sizeof(txpkt));
 	txpkt.freq_hz = f_target[0];
@@ -397,16 +397,16 @@ int main(int argc, char **argv)
 	txpkt.preamble = preamb;
 	txpkt.size = pl_size;
 	strcpy((char *)txpkt.payload, "TEST**abcdefghijklmnopqrstuvwxyz0123456789" ); /* abc.. is for padding */
-	
+
 	/* main loop */
 	cycle_count = 0;
 	while ((repeat == -1) || (cycle_count < repeat)) {
 		++cycle_count;
-		
+
 		/* refresh counters in payload (big endian, for readability) */
 		txpkt.payload[4] = (uint8_t)(cycle_count >> 8); /* MSB */
 		txpkt.payload[5] = (uint8_t)(cycle_count & 0x00FF); /* LSB */
-		
+
 		/* send packet */
 		printf("Sending packet number %u ...", cycle_count);
 		if( rf_chain_enable & 0x01){
@@ -424,7 +424,7 @@ int main(int argc, char **argv)
 			} while (status_var != TX_FREE);
 			printf("OK\n");
 		}
-		
+
 		if( rf_chain_enable & 0x02){
 			txpkt.rf_chain = 1;
 			txpkt.freq_hz = f_target[1];
@@ -433,7 +433,7 @@ int main(int argc, char **argv)
 				printf("ERROR\n");
 				return EXIT_FAILURE;
 			}
-			
+
 			/* wait for packet to finish sending */
 			do {
 				wait_ms(5);
@@ -444,16 +444,16 @@ int main(int argc, char **argv)
 
 		/* wait inter-packet delay */
 		wait_ms(delay);
-		
+
 		/* exit loop on user signals */
 		if ((quit_sig == 1) || (exit_sig == 1)) {
 			break;
 		}
 	}
-	
+
 	/* clean up before leaving */
 	lgw_stop();
-	
+
 	printf("Exiting LoRa concentrator TX test program\n");
 	return EXIT_SUCCESS;
 }
