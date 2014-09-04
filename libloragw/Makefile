@@ -136,7 +136,7 @@ endif
 
 ### general build targets
 
-all: libloragw.a test_loragw_spi test_loragw_reg test_loragw_hal test_loragw_tx test_loragw_rx test_loragw_gps
+all: libloragw.a test_loragw_spi test_loragw_reg test_loragw_hal test_loragw_tx test_loragw_rx test_loragw_gps test_loragw_full_duplex
 
 clean:
 	rm -f libloragw.a
@@ -225,6 +225,9 @@ test_loragw_rx: tst/test_loragw_rx.c libloragw.a
 	$(CC) $(CFLAGS) -L. $< -o $@ $(LIBS)
 
 test_loragw_tx: tst/test_loragw_tx.c libloragw.a
+	$(CC) $(CFLAGS) -L. $< -o $@ $(LIBS)
+
+test_loragw_full_duplex: tst/test_loragw_full_duplex.c libloragw.a
 	$(CC) $(CFLAGS) -L. $< -o $@ $(LIBS)
 
 test_loragw_gps: tst/test_loragw_gps.c libloragw.a
